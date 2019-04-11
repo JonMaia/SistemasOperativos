@@ -75,7 +75,7 @@ class Kernel():
     def __repr__(self): # Es el toString de java. Representarme en string.
         return "Kernel "
 
-    def executeBatch(self, programs):
-    	progSize = len(programs)
-    	for index in range(0, progSize):
-    		self.run(programs[index])
+    def executeBatch(self, batch):
+    	
+    	for program in batch:
+    		self.run(program)
