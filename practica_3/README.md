@@ -94,3 +94,103 @@ También se incluyeron 2 interrupciones
         newIRQ = IRQ(NEW_INTERRUPTION_TYPE, program)
         self._interruptVector.handle(newIRQ)
     ```
+
+
+
+
+NOTAS DEL TP: 
+
+EN ESTA PRACTICA LA IDEA ES HACER MULTIPROGRAMACION Y TENER VARIOS PROGRAMAS CARGADOS EN LA MEMORIA.
+
+I/O (imput/output): Dispositivo entrada salida. EJ: impresora
+
+El clock hace un tick "infinito" en todo momento al CPU y al IODEVICE
+
+CPU solo conoce memoria y las instrucciones a ejecutar. No conoce los IO.
+
+La cpu no ejecuta instrucciones de IO,cuando detecta que es instruccion de ASM.IO() ejecuta una interrupcion (irq):
+tenemos 4 interrupciones: NEW Handler -  KILL handler - IO_IN handler - IO_OUT handler
+En este caso hacemos IO_IN handler.
+
+
+ 
+ se agrega el programa a la WAITING  QUEUE, entonces libera ese programa de la cpu para que la cpu tome otra programa y no se pierda tiempo. Luego el IO DEVICE se encarga de ejecutar ese programa y al terminar de ejecutar  hace  INTERRUTHANDLER IO_OUT, lo que hace esta interrupcion es mandar el programa a la READY QUEUE.
+
+ 
+
+
+
+Idle : _pc = -1    = PC OSIOSA SIN HACER NADA.
+Bussy: _pc > -1    = PC UCUPADA EJECUTANDO UN PROGRAMA.
+
+En este TP No quiero ejecutar en batch uno por uno los programas. quiero hacer multiprogramación ejecutar varios al mismo tiempo.
+
+mientras haya espacio en memoria, podemos alojar todos los programas (con sus instrucciones en cada celda) en memoria.
+
+dir logica: DIR LOGICA DEL PROGRAMA 
+
+Dir fisica: DIR DE MEMORIA FISICA REAL
+
+Base dir: indica la dir fisica de la memoria donde arranca el "programa" del proceso en cpu.
+#la base dir tiene info de cada uno de los procesos por eso sabe donde empieza cada programa.
+
+baseDir + pc es el calculo para que la cpu haga fetch y ejecute esa instruccion de la memoria fisica.
+
+cpu  maneja dir logicas
+memoria maneja dir fisicas
+
+mmu : es el que transforma dir logicas en fisicas. 
+
+
+se debe crear una clase LOADER:
+
+Loader: es el encargado de cargar programas en memoria , el loader puede guardar el proximo lugar donde se debe cargar el nuevo programa.
+
+pcb table : muentras el estado de todos los procesos ej: proceso 1 Waiting
+
+
+
+En SO se debe implementar la clase dispatcher con metodos load(pcb) - save(pcb)(deja en idle el cpu)
+es el encargado de cuando se hace el context switch, guarda el pcb del proceso actual y carga el pcb del proceso que se seleccionó para ejecutar.
+
+
+
+#DEBEMOS MODIFICAR LAS 4 INTERRUPCIONES KILLER NEW  IO_IN   IO_OUT.......
+
+
+
+#-Interrupcion de New: 
+
+crear PCB:
+- crear pid
+- deben estar todos los programas y sus estados(el primer estado de un progrma es NEW)
+- agregar programa al PCB table y ponerlo en estado NEW.
+
+-Cargar el progrma en el PCB con todos sus datos.
+-Cargar en memoria el programa, esto lo hace el LOADER.(el loader conoce la memoria y tiene un puntero que indica la sig posicion en donde se debe cargar el prox programa)
+
+EN EL PCB TABLE DEBE HABER UN CAMPO QUE DEBE ES PCB.RUNNING es un puntero al proceso running si lo hay, si no debe estar en NONE(NULL).
+
+- Si el no hay un programa en running en la cpu, ejecutamos ese programa pegando los datos de la PCB del programa nuevo en la cpu para ejecutarlo.
+
+#-Interrupcion de KILL:
+
+
+-Debemos interactuar con el pcb.
+
+-cuando el cpu lee la instruccion EXIT de un programa, ejecuta una interrupcion que es el kill handler. Luego el dispatcher debe ejecutar el Content swith que lo que hace es actualizar el PCB de ese proceso, pone su estado en TERMINATED y guarda el PC = LIMITE DE PROGRAMA. 
+
+-Luego establecemos el PC = -1.
+
+-Analizamos si hay programas por correr en la ready queue:
+
+si hay programas todavia, ejecuta content swith y hace load del programa a ejecutar. los datos del PCB del programa pisa los valores pc del cpu y base dir del MMU.
+
+si no hay programas en ready queue, queda en un loop tirando NOOP.
+
+funciones:
+
+dispacher.save(pcb)
+
+
+TENER EN CUENTA QUE EL CONTENT SWITH TIENE 2 PATAS: EL SAVE Y EL LOAD.
