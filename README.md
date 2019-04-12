@@ -13,3 +13,5 @@
 ## Entregas:
 
 - Práctica 1:  Ok.
+
+- Práctica 2:  Ok.
