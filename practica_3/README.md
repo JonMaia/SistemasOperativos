@@ -139,7 +139,7 @@ baseDir + pc es el calculo para que la cpu haga fetch y ejecute esa instruccion 
 cpu  maneja dir logicas
 memoria maneja dir fisicas
 
-mmu : es el que transforma dir logicas en fisicas. 
+MMU : es el que transforma dir logicas en fisicas. 
 
 
 se debe crear una clase LOADER:
@@ -195,3 +195,16 @@ dispacher.load(pcb)
 
 
 TENER EN CUENTA QUE EL CONTENT SWITH TIENE 2 PATAS: EL SAVE Y EL LOAD.
+
+
+Notas del apunte de Migue :
+
+La system call RUN carga en memoria el proceso.
+
+el run ejecuta la interrupcion NEW, que lo que hace es establecerle un pcb al proceso, colocarlo en la tabla pc con estado new y cargarlo en memoria(el loader lo carga), luego lo coloca en estado READY. Si es el unico proceso en memoria, directamente lo manda a ejecutar
+
+HAY QUE PROGRAMAR 4 CLASES:
+
+Dispatcher - loader - las 4 interrupciones - crear ready queue - pcb table - pcb de cada proceso.
+
+
