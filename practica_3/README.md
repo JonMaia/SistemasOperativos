@@ -1,4 +1,4 @@
-# Práctica 3
+﻿# Práctica 3
 ## Multiprogramación
 
 
@@ -146,7 +146,7 @@ se debe crear una clase LOADER:
 
 Loader: es el encargado de cargar programas en memoria , el loader puede guardar el proximo lugar donde se debe cargar el nuevo programa.
 
-pcb table : muentras el estado de todos los procesos ej: proceso 1 Waiting
+pcb table : muentras el estado de todos los procesos ej: proceso 1 Waiting - proceso 2 new
 
 
 
@@ -155,14 +155,14 @@ es el encargado de cuando se hace el context switch, guarda el pcb del proceso a
 
 
 
-#DEBEMOS MODIFICAR LAS 4 INTERRUPCIONES KILLER NEW  IO_IN   IO_OUT.......
+#DEBEMOS MODIFICAR LAS 4 INTERRUPCIONES: KILLER- NEW - IO_IN - IO_OUT
 
 
 
 #-Interrupcion de New: 
 
 crear PCB:
-- crear pid
+- crear pid (id univoco de cada proceso)
 - deben estar todos los programas y sus estados(el primer estado de un progrma es NEW)
 - agregar programa al PCB table y ponerlo en estado NEW.
 
@@ -184,13 +184,14 @@ EN EL PCB TABLE DEBE HABER UN CAMPO QUE DEBE ES PCB.RUNNING es un puntero al pro
 
 -Analizamos si hay programas por correr en la ready queue:
 
-si hay programas todavia, ejecuta content swith y hace load del programa a ejecutar. los datos del PCB del programa pisa los valores pc del cpu y base dir del MMU.
+si hay programas todavia, ejecuta content swith y hace load del programa a ejecutar -> los datos del PCB del programa pisa los valores pc del cpu y base dir del MMU.
 
 si no hay programas en ready queue, queda en un loop tirando NOOP.
 
 funciones:
 
 dispacher.save(pcb)
+dispacher.load(pcb)
 
 
 TENER EN CUENTA QUE EL CONTENT SWITH TIENE 2 PATAS: EL SAVE Y EL LOAD.
