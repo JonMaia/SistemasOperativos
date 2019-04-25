@@ -158,3 +158,64 @@ class Kernel():
 
     def __repr__(self):
         return "Kernel "
+
+
+class PCBTable():
+
+    def __init__(self):
+        self._lista_de_pcb = []
+        self._running_pcb = None
+        self. _pid = 1
+
+    @property
+    def listaDePCB(self):
+        return self._lista_de_pcb
+
+
+    def crearPCB(self):
+        new_pcb = PCB
+
+        new_pcb.setPid(self._pid)
+        self._pid += 1
+
+
+    def addPCB(self, pcb):
+        if (pcb.state == "Running"):
+            self._running_pcb = pcb.state
+            self._lista_de_pcb.append(pcb)
+        else:
+            self._lista_de_pcb.append(pcb)
+
+
+
+
+class PCB():
+    def __init__(self, programa):
+        self._program = programa
+        self._pid = None
+
+    @property
+    def pid(self):
+       return self._pid
+
+    def setPid(self, n):
+        self._pid = n
+
+    def baseDir(self):
+        pass
+
+    def pc(self):
+        pass
+
+    def state(self):
+        pass
+
+    def path(self):
+        pass
+
+
+
+class Queue():
+    def __init__(self):
+        self._queue = []
+
