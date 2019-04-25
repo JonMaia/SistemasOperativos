@@ -136,7 +136,7 @@ Base dir: indica la dir fisica de la memoria donde arranca el "programa" del pro
 
 baseDir + pc es el calculo para que la cpu haga fetch y ejecute esa instruccion de la memoria fisica.
 
-cpu  maneja dir logicas
+cpu maneja dir logicas
 memoria maneja dir fisicas
 
 MMU : es el que transforma dir logicas en fisicas. 
@@ -171,14 +171,14 @@ crear PCB:
 
 EN EL PCB TABLE DEBE HABER UN CAMPO QUE DEBE ES PCB.RUNNING es un puntero al proceso running si lo hay, si no debe estar en NONE(NULL).
 
-- Si el no hay un programa en running en la cpu, ejecutamos ese programa pegando los datos de la PCB del programa nuevo en la cpu para ejecutarlo.
+- Si no hay un programa en running en la cpu, ejecutamos ese programa pegando los datos de la PCB del programa nuevo en la cpu para ejecutarlo.
 
 #-Interrupcion de KILL:
 
 
 -Debemos interactuar con el pcb.
 
--cuando el cpu lee la instruccion EXIT de un programa, ejecuta una interrupcion que es el kill handler. Luego el dispatcher debe ejecutar el Content swith que lo que hace es actualizar el PCB de ese proceso, pone su estado en TERMINATED y guarda el PC = LIMITE DE PROGRAMA. 
+-Cuando el cpu lee la instruccion EXIT de un programa, ejecuta una interrupcion que es el kill handler. Luego el dispatcher debe ejecutar el Content swith que lo que hace es actualizar el PCB de ese proceso, pone su estado en TERMINATED y guarda el PC = LIMITE DE PROGRAMA. 
 
 -Luego establecemos el PC = -1.
 
@@ -196,6 +196,59 @@ dispacher.load(pcb)
 
 TENER EN CUENTA QUE EL CONTENT SWITH TIENE 2 PATAS: EL SAVE Y EL LOAD.
 
+#- INTERRUPCION IO_IN
+
+runningPCB = pcbTable.runningPCB
+kernel.dispatcher.save(runningPCB) -> guarda el pcb del proceso, acordarse que solo guarda el PC.
+kernel.pc = -1
+runningPCB.state = "waiting"
+runningPCB = none
+self.kernel.ioDeviceController.runOperation(runningPCB,operation)
+
+    If len(kernel.readyQueue) > 0 
+        kernel.dispatcher.load(head.readyQueue)
+        head.readyQueue.state = "Running"
+        runningPCB = head.readyQueue
+
+
+#Nota: la clase IODEVICE (IODEVIDECONTROLLER) viene ya implementada junto con su waiting queue.
+# EL dispatcher no actualiza el estado del pcb del proceso.
+
+
+# esta bien decir Kernel.ReadyQueue ?  SI, el kernel tiene una variable que es ready queue.
+# El dispatcher solo actualiza el PC del PCB del proceso ?
+
+
+
+#- INTERRUPCION IO_OUT
+
+
+ioPCB = IoDeviceController.getFinishedPCB()  -> devuelve el pcb del proceso
+
+ if pcbTable.runningPCB == none
+    ioPCB.state = "Running"
+    pcbTable.runningPBC = ioPCB
+    kernel.dispatcher.load(ioPCB)
+
+else:
+    ioPCB.state = "Ready"
+    readyQueue.add(ioPCB) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Notas del apunte de Migue :
 
@@ -206,5 +259,17 @@ el run ejecuta la interrupcion NEW, que lo que hace es establecerle un pcb al pr
 HAY QUE PROGRAMAR 4 CLASES:
 
 Dispatcher - loader - las 4 interrupciones - crear ready queue - pcb table - pcb de cada proceso.
+
+
+Hay que moficiar kernel.run(program):  (fijarse ultima pagina del pdf de practica 3)
+
+debe llamar al interruptor handle   
+
+-----------------------------
+
+
+
+
+
 
 
