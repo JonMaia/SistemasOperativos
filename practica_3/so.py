@@ -116,6 +116,9 @@ class IoOutInterruptionHandler(AbstractInterruptionHandler):
         HARDWARE.cpu.pc = pcb['pc']
         log.logger.info(self.kernel.ioDeviceController)
 
+class NewInterruptionHandler(AbstractInterruptionHandler):
+    pass
+
 
 # emulates the core of an Operative System
 class Kernel():
@@ -131,6 +134,13 @@ class Kernel():
         ioOutHandler = IoOutInterruptionHandler(self)
         HARDWARE.interruptVector.register(IO_OUT_INTERRUPTION_TYPE, ioOutHandler)
 
+        newHandler = NewInterruptionHandler(self)
+        HARDWARE.interruptVector.register(NEW_INTERRUPTION_TYPE, newHandler)
+
+        loader = Loader()
+
+        pcbTable = PCBTable()
+
         ## controls the Hardware's I/O Device
         self._ioDeviceController = IoDeviceController(HARDWARE.ioDevice)
 
@@ -139,16 +149,9 @@ class Kernel():
     def ioDeviceController(self):
         return self._ioDeviceController
 
-    def load_program(self, program):
-        # loads the program in main memory
-        progSize = len(program.instructions)
-        for index in range(0, progSize):
-            inst = program.instructions[index]
-            HARDWARE.memory.put(index, inst)
-
     ## emulates a "system call" for programs execution
     def run(self, program):
-        self.load_program(program)
+        self.loader.load(program)
         log.logger.info("\n Executing program: {name}".format(name=program.name))
         log.logger.info(HARDWARE)
 
@@ -160,10 +163,34 @@ class Kernel():
         return "Kernel "
 
 
+class Loader():
+
+    def __init__(self):
+        self._baseDir = 0
+
+
+    def nextDir(self):
+        return
+
+    def load(self, programa):
+        progSize = len(programa.instructions)
+        myBaseDir = self._baseDir
+
+        for index in range(0, progSize):
+            HARDWARE.memory.put(self._baseDir + index, programa.instructions[index])
+
+        self._baseDir += progSize
+
+        return myBaseDir
+
+
+
+
 class PCBTable():
 
     def __init__(self):
-        self._lista_de_pcb = []
+        self._cpu = HARDWARE.cpu
+        self._lista_de_pcb = [] ## Queue
         self._running_pcb = None
         self. _pid = 1
 
@@ -172,11 +199,18 @@ class PCBTable():
         return self._lista_de_pcb
 
 
-    def crearPCB(self):
-        new_pcb = PCB
+    def crearPCB(self, programa):
+        new_pcb = PCB(programa, self.getNewPID())
+        loader.load(pcb)
 
-        new_pcb.setPid(self._pid)
+
+    def getNewPID(self):
+        pid = self._pid
+
         self._pid += 1
+
+        return pid
+
 
 
     def addPCB(self, pcb):
@@ -190,28 +224,32 @@ class PCBTable():
 
 
 class PCB():
-    def __init__(self, programa):
+    def __init__(self, programa, pid, state, pc, pathName, baseDir):
         self._program = programa
-        self._pid = None
+        self._pid = pid
+        self._state = state
+        self._pc = pc
+        self._path = pathName
+        self._baseDir = baseDir
 
     @property
     def pid(self):
        return self._pid
 
-    def setPid(self, n):
-        self._pid = n
-
     def baseDir(self):
-        pass
+        return self._baseDir
 
+    @property
     def pc(self):
-        pass
+        return self._pc
 
+    @property
     def state(self):
-        pass
+        return self._state
 
+    @property
     def path(self):
-        pass
+        return self._path
 
 
 
