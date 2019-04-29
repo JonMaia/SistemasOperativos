@@ -178,7 +178,11 @@ EN EL PCB TABLE DEBE HABER UN CAMPO QUE DEBE ES PCB.RUNNING es un puntero al pro
 
 -Debemos interactuar con el pcb.
 
--Cuando el cpu lee la instruccion EXIT de un programa, ejecuta una interrupcion que es el kill handler. Luego el dispatcher debe ejecutar el Content swith que lo que hace es actualizar el PCB de ese proceso, pone su estado en TERMINATED y guarda el PC = LIMITE DE PROGRAMA. 
+-Cuando el cpu lee la instruccion EXIT de un programa, ejecuta una interrupcion que es el kill handler.....
+
+ El dispatcher debe ejecutar el Content swith que lo que hace es actualizar el PCB de ese proceso, pone su estado en TERMINATED y guarda el PC = LIMITE DE PROGRAMA. 
+
+ Sacamos el programa que se ejecuto de la PCBTable.running
 
 -Luego establecemos el PC = -1.
 
@@ -200,7 +204,7 @@ TENER EN CUENTA QUE EL CONTENT SWITH TIENE 2 PATAS: EL SAVE Y EL LOAD.
 
 runningPCB = pcbTable.runningPCB
 kernel.dispatcher.save(runningPCB) -> guarda el pcb del proceso, acordarse que solo guarda el PC.
-kernel.pc = -1
+HARDWARE.cpu.pc = -1
 runningPCB.state = "waiting"
 runningPCB = none
 self.kernel.ioDeviceController.runOperation(runningPCB,operation)
@@ -216,7 +220,7 @@ self.kernel.ioDeviceController.runOperation(runningPCB,operation)
 
 
 # esta bien decir Kernel.ReadyQueue ?  SI, el kernel tiene una variable que es ready queue.
-# El dispatcher solo actualiza el PC del PCB del proceso ?
+# El dispatcher solo actualiza el PC del PCB del proceso ? SI, no cambia el estado del pcb, eso lo tengo que hacer a mano.
 
 
 

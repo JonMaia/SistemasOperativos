@@ -95,9 +95,30 @@ class AbstractInterruptionHandler():
 
 class KillInterruptionHandler(AbstractInterruptionHandler):
 
-    def execute(self, irq):
-        log.logger.info(" Program Finished ")
-        HARDWARE.cpu.pc = -1  ## dejamos el CPU IDLE
+    def execute(self, irq0):
+    pcbActual = pcbTable.running
+
+    Dispatcher.save(pcbActual)
+    pcbActual.state = "Terminated"
+    pcbTable.running = None
+
+
+    log.logger.info(" Program Finished ")
+     
+    
+
+    if (len(kernel.readyQueue) != 0 ):
+        pcbTable.running = pcbTable.listaDePCB[0]
+
+        Kernel.readyQueue.remove( ((pcbTable.listaDePCB[0]).pid)  ) """Lo saco de la ready Queue"""
+
+        pcbActual = pcbTable.running  
+        Dispatcher.load(pcbActual)
+        pcbActual.state = "Running"
+
+
+
+
 
 class IoInInterruptionHandler(AbstractInterruptionHandler):
 
@@ -116,8 +137,13 @@ class IoOutInterruptionHandler(AbstractInterruptionHandler):
         HARDWARE.cpu.pc = pcb['pc']
         log.logger.info(self.kernel.ioDeviceController)
 
+
 class NewInterruptionHandler(AbstractInterruptionHandler):
-    pass
+
+
+    def execute(self, irq0):
+
+        
 
 
 # emulates the core of an Operative System
@@ -137,9 +163,14 @@ class Kernel():
         newHandler = NewInterruptionHandler(self)
         HARDWARE.interruptVector.register(NEW_INTERRUPTION_TYPE, newHandler)
 
+
+        self.readyQueue = []
+
         loader = Loader()
 
         pcbTable = PCBTable()
+
+        Dispatcher = Dispatcher()
 
         ## controls the Hardware's I/O Device
         self._ioDeviceController = IoDeviceController(HARDWARE.ioDevice)
@@ -203,6 +234,9 @@ class PCBTable():
         new_pcb = PCB(programa, self.getNewPID())
         loader.load(pcb)
 
+    def getPid(self):
+        return self._pid
+
 
     def getNewPID(self):
         pid = self._pid
@@ -220,7 +254,10 @@ class PCBTable():
         else:
             self._lista_de_pcb.append(pcb)
 
-
+    def remove(self,pid):        """   CHEQUEAR SI ESTA BIEN """
+        for pcb in (self._lista_de_pcb):
+            if pcb.pid == pid:
+                self._lista_de_pcb.remove(pcb)    
 
 
 class PCB():
@@ -257,3 +294,25 @@ class Queue():
     def __init__(self):
         self._queue = []
 
+
+
+
+
+""" CLASE DISPATCHER """
+
+
+class Dispatcher():
+
+def __init__(self):
+    self._cpu = HARDWARE.cpu   """NO SE SI VA """
+
+
+def load(self,pcb):
+
+    Hardware.cpu.pc = pcb.pc 
+    HARDWARE.cpu.mmu.baseDir = pcb.baseDir  
+
+def save(self,pcb):
+
+    pcb.pc = Hardware.cpu.pc
+    HARDWARE.cpu.pc = -1
