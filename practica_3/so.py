@@ -187,11 +187,11 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
 
 
         nuevoPCB = pcbTable.crearPCB(program)
-        nuevoPCB.state = "New"
+        
         nuevoPCB.baseDir = loader.load(program)   """Carga programa en memoria y retorna el Base dir donde estará el programa """
        
 
-        pcbTable.addPCB(nuevoPCB)
+        
 
         if(pcbTable.running == None):
             pcbTable.running = nuevoPCB
@@ -312,8 +312,9 @@ class PCBTable():
         return self._lista_de_pcb
 
 
-    def crearPCB(self, programa):
-        new_pcb = PCB(programa, self.getNewPID())
+    def crearPCB(self, programa, state):   """Creo un PCB con un Pid univoco y en estado "New"  """
+        new_pcb = PCB(programa, self.getNewPID(),"New")
+        self.addPCB(new_pcb)
            
 
     def getPid(self):
