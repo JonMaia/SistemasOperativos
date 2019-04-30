@@ -98,7 +98,7 @@ class KillInterruptionHandler(AbstractInterruptionHandler):
     def execute(self, irq0):
     pcbActual = pcbTable.running
 
-    Dispatcher.save(pcbActual)
+    kernel.dispatcher.save(pcbActual)
     pcbActual.state = "Terminated"
     pcbTable.running = None
 
@@ -107,12 +107,12 @@ class KillInterruptionHandler(AbstractInterruptionHandler):
      
     
 
-    if (len(kernel.readyQueue) != 0 ):
+    if (len(kernel.readyQueue) > 0 ):
         pcbTable.running = pcbTable.listaDePCB[0]
 
         pcbActual = pcbTable.running  
 
-        Dispatcher.load(pcbActual)
+        kernel.dispatcher.load(pcbActual)
         pcbActual.state = "Running"
 
 
@@ -121,20 +121,52 @@ class KillInterruptionHandler(AbstractInterruptionHandler):
 
 class IoInInterruptionHandler(AbstractInterruptionHandler):
 
-    def execute(self, irq):
+    def execute(self, irq):  """    ESTE CODIGO COMENTADO YA VINO, CHEQUEAR QUE SIRVE 
         operation = irq.parameters
         pcb = {'pc': HARDWARE.cpu.pc} # porque hacemos esto ???
         HARDWARE.cpu.pc = -1   ## dejamos el CPU IDLE
         self.kernel.ioDeviceController.runOperation(pcb, operation)
         log.logger.info(self.kernel.ioDeviceController)
+        """
+
+        runningPCB = pcbTable.runningPCB
+        kernel.dispatcher.save(runningPCB) """ guarda el pcb del proceso"""
+        HARDWARE.cpu.pc = -1
+        runningPCB.state = "Waiting"
+        runningPCB = None
+        self.kernel.ioDeviceController.runOperation(runningPCB,operation)  """ Ojo que runningPCB esta en none, chequearlo"""
+
+        if len(kernel.readyQueue) > 0:
+            headReadyQueue = kernel.readyQueue[0]
+
+            kernel.dispatcher.load(headReadyQueue)
+            headReadyQueue.state = "Running"
+            runningPCB = headReadyQueue
+
+
+
 
 
 class IoOutInterruptionHandler(AbstractInterruptionHandler):
 
-    def execute(self, irq):
+    def execute(self, irq): """   ESTE CODIGO COMENTADO YA VINO, CHEQUEAR QUE SIRVE 
         pcb = self.kernel.ioDeviceController.getFinishedPCB()
         HARDWARE.cpu.pc = pcb['pc']
         log.logger.info(self.kernel.ioDeviceController)
+
+        """
+
+        ioPCB = self.kernel.IoDeviceController.getFinishedPCB()   """ devuelve el pcb del proceso """
+
+        if (pcbTable.runningPCB == None ):
+            ioPCB.state = "Running"
+            pcbTable.runningPBC = ioPCB
+            kernel.dispatcher.load(ioPCB)
+
+        else:
+            ioPCB.state = "Ready"
+            kernel.addReadyQueue(ioPCB)
+
 
 
 
@@ -195,8 +227,7 @@ class Kernel():
         newHandler = NewInterruptionHandler(self)
         HARDWARE.interruptVector.register(NEW_INTERRUPTION_TYPE, newHandler)
 
-
-        self.readyQueue = []
+        self._readyQueue = []
 
         loader = Loader()
 
@@ -212,7 +243,9 @@ class Kernel():
     def ioDeviceController(self):
         return self._ioDeviceController
 
-
+    @property
+    def readyQueue(self):
+        return self._readyQueue
 
     def addReadyQueue(self,pcb):
         self.readyQueue.add(pcb)
