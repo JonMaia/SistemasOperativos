@@ -312,7 +312,7 @@ class PCBTable():
         return self._lista_de_pcb
 
 
-    def crearPCB(self, programa, state):   """Creo un PCB con un Pid univoco y en estado "New"  """
+    def crearPCB(self, programa, state):   """Creo un PCB con un Pid univoco en estado "New" y lo agrego a la Lista de pcb """
         new_pcb = PCB(programa, self.getNewPID(),"New")
         self.addPCB(new_pcb)
            
