@@ -110,9 +110,8 @@ class KillInterruptionHandler(AbstractInterruptionHandler):
     if (len(kernel.readyQueue) != 0 ):
         pcbTable.running = pcbTable.listaDePCB[0]
 
-        Kernel.readyQueue.remove( ((pcbTable.listaDePCB[0]).pid)  ) """Lo saco de la ready Queue"""
-
         pcbActual = pcbTable.running  
+
         Dispatcher.load(pcbActual)
         pcbActual.state = "Running"
 
@@ -138,11 +137,44 @@ class IoOutInterruptionHandler(AbstractInterruptionHandler):
         log.logger.info(self.kernel.ioDeviceController)
 
 
+
+
+
+
+
 class NewInterruptionHandler(AbstractInterruptionHandler):
 
 
-    def execute(self, irq0):
+    def execute(self, irq0):   """PROGRAM DEBERIA ESTAR EN EL PARAMETRO, NO SE DONDE ESTABLECERLO YA QUE HAY QUE USARLO, NO SE QUE ES irq0 """
 
+    log.logger.info("\n Executing program: {name}".format(name=program.name))
+        log.logger.info(HARDWARE)
+
+        # set CPU program counter at program's first intruction
+        HARDWARE.cpu.pc = 0
+
+
+        nuevoPCB = pcbTable.crearPCB(program)
+        nuevoPCB.state = "New"
+        nuevoPCB.baseDir = loader.load(program)   """Carga programa en memoria y retorna el Base dir donde estará el programa """
+       
+
+        pcbTable.addPCB(nuevoPCB)
+
+        if(pcbTable.running == None):
+            pcbTable.running = nuevoPCB
+            Dispatcher.load(nuevoPCB)
+            nuevoPCB.state = "Running"
+
+        else:
+            nuevoPCB.state = "Ready"
+            kernel.addReadyQueue(nuevoPCB)
+            
+
+
+
+
+        
         
 
 
@@ -170,7 +202,7 @@ class Kernel():
 
         pcbTable = PCBTable()
 
-        Dispatcher = Dispatcher()
+        dispatcher = Dispatcher()
 
         ## controls the Hardware's I/O Device
         self._ioDeviceController = IoDeviceController(HARDWARE.ioDevice)
@@ -180,14 +212,29 @@ class Kernel():
     def ioDeviceController(self):
         return self._ioDeviceController
 
+
+
+    def addReadyQueue(self,pcb):
+        self.readyQueue.add(pcb)
+
     ## emulates a "system call" for programs execution
     def run(self, program):
-        self.loader.load(program)
+
+     """ TIENE QUE LLAMAR A LA INSTERRUPCION NEW """   
+    newIRQ = IRQ(NEW_INTERRUPTION_TYPE, program)
+    self._interruptVector.handle(newIRQ)
+  
+
+
+
+       """ self.loader.load(program)
         log.logger.info("\n Executing program: {name}".format(name=program.name))
         log.logger.info(HARDWARE)
 
         # set CPU program counter at program's first intruction
         HARDWARE.cpu.pc = 0
+        """
+
 
 
     def __repr__(self):
@@ -199,9 +246,11 @@ class Loader():
     def __init__(self):
         self._baseDir = 0
 
+    def baseDir(self)
+        return self._baseDir
 
     def nextDir(self):
-        return
+        return self._baseDir
 
     def load(self, programa):
         progSize = len(programa.instructions)
@@ -232,7 +281,7 @@ class PCBTable():
 
     def crearPCB(self, programa):
         new_pcb = PCB(programa, self.getNewPID())
-        loader.load(pcb)
+           
 
     def getPid(self):
         return self._pid
@@ -304,7 +353,7 @@ class Queue():
 class Dispatcher():
 
 def __init__(self):
-    self._cpu = HARDWARE.cpu   """NO SE SI VA """
+    
 
 
 def load(self,pcb):
