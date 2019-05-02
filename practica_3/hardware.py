@@ -201,6 +201,10 @@ class Cpu():
             log.logger.info("cpu - Exec: {instr}, PC={pc}".format(instr=self._ir, pc=self._pc))
 
     @property
+    def mmu(self):
+        return self._mmu
+
+    @property
     def pc(self):
         return self._pc
 
