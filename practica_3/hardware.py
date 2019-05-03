@@ -174,7 +174,7 @@ class Cpu():
 
 
     def tick(self, tickNbr):
-        if (self._pc > -1):
+        if (self.pc > -1):
             self._fetch()
             self._decode()
             self._execute()
@@ -183,8 +183,8 @@ class Cpu():
 
 
     def _fetch(self):
-        self._ir = self._mmu.fetch(self._pc)
-        self._pc += 1
+        self._ir = self._mmu.fetch(self.pc)
+        self.pc += 1
 
     def _decode(self):
         ## decode no hace nada en este caso
@@ -198,7 +198,7 @@ class Cpu():
             ioInIRQ = IRQ(IO_IN_INTERRUPTION_TYPE, self._ir)
             self._interruptVector.handle(ioInIRQ)
         else:
-            log.logger.info("cpu - Exec: {instr}, PC={pc}".format(instr=self._ir, pc=self._pc))
+            log.logger.info("cpu - Exec: {instr}, PC={pc}".format(instr=self._ir, pc=self.pc))
 
     @property
     def mmu(self):
@@ -213,7 +213,7 @@ class Cpu():
         self._pc = addr
 
     def __repr__(self):
-        return "CPU(PC={pc})".format(pc=self._pc)
+        return "CPU(PC={pc})".format(pc=self.pc)
 
 
 ## emulates an Input/output device of the Hardware

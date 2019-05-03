@@ -70,7 +70,7 @@ class IoDeviceController():
         if (len(self._waiting_queue) > 0) and self._device.is_idle:
             ## pop(): extracts (deletes and return) the first element in queue
             pair = self._waiting_queue.pop(0)
-            # print(pair)
+
             pcb = pair['pcb']
             instruction = pair['instruction']
             self._currentPCB = pcb
@@ -97,18 +97,20 @@ class AbstractInterruptionHandler():
 class KillInterruptionHandler(AbstractInterruptionHandler):
 
     def execute(self, irq0):
-        log.logger.info(" Program Finished ")
-
-        pcbActual = self.kernel.pcbTable.running_pcb
         kernel = self.kernel
         pcbTable = self.kernel.pcbTable
 
-        pcbActual._state = "Terminated"
+        pcbActual = self.kernel.pcbTable.running_pcb
+        pcbTable.running_pcb = None
+
         kernel.dispatcher.save(pcbActual)
-        pcbTable.set_running_pcb = None
+        pcbActual._state = "Terminated"
+      
+        log.logger.info(" Program Finished ")
+
 
         if len(kernel.readyQueue) > 0:
-            headReadyQueue = kernel.readyQueue[0]
+            headReadyQueue = kernel.readyQueue.pop()
             headReadyQueue._state = "Running"
             pcbTable._running_pcb = headReadyQueue
             kernel.dispatcher.load(headReadyQueue)
@@ -121,21 +123,23 @@ class IoInInterruptionHandler(AbstractInterruptionHandler):
         kernel = self.kernel
         pcbTable = self.kernel.pcbTable
         # pcb = {'pc': HARDWARE.cpu.pc} # porque hacemos esto ???
-        # HARDWARE.cpu.pc = -1   ## dejamos el CPU IDLE
         # self.kernel.ioDeviceController.runOperation(pcb, operation)
-        runningPCB = kernel.pcbTable.running_pcb
-        runningPCB.set_state("Waiting")
-        kernel.dispatcher.save(runningPCB)  # guarda el pcb del proceso
-        self.kernel.pcbTable.set_running_pcb(None)  # Ojo que runningPCB esta en none, chequearlo
 
-        if len(kernel.readyQueue) > 0:
-            headReadyQueue = kernel.readyQueue[0]
-            headReadyQueue._state = "Running"
-            pcbTable.set_running_pcb(headReadyQueue)
-            kernel.dispatcher.load(headReadyQueue)
-            
+        runningPCB = pcbTable.running_pcb
+        self.kernel.pcbTable._running_pcb = None 
+  
+        kernel.dispatcher.save(runningPCB)  # guarda el pcb del proceso
+        runningPCB.set_state("Waiting")
         log.logger.info(self.kernel.ioDeviceController)
         kernel.ioDeviceController.runOperation(runningPCB, operation)
+
+        if len(kernel.readyQueue) > 0:
+            headReadyQueue = kernel.readyQueue.pop()
+            headReadyQueue._state = "Running"
+            pcbTable.running_pcb = headReadyQueue
+            kernel.dispatcher.load(headReadyQueue)
+            
+
 
 
 class IoOutInterruptionHandler(AbstractInterruptionHandler):
@@ -151,7 +155,7 @@ class IoOutInterruptionHandler(AbstractInterruptionHandler):
         if (pcbTable.running_pcb == None):
             self.kernel.dispatcher.load(ioPCB)
             ioPCB.set_state("Running")
-            pcbTable.set_running_pcb(ioPCB)
+            pcbTable.running_pcb = ioPCB
 
         else:
             self.kernel.addReadyQueue(ioPCB)
@@ -163,7 +167,7 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
 
     def execute(self, irq0):
         kernel = self.kernel
-        program = irq0.parameters
+        program = irq0.parameters  # IRQ0.parameters devuelve un program.
         pcbTable = self.kernel.pcbTable
 
         log.logger.info("\n Executing program: {name}".format(name=program.name))
@@ -180,7 +184,7 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
         if (pcbTable.running_pcb == None):
             kernel.dispatcher.load(pcb)
             pcb.set_state("Running")
-            pcbTable.set_running_pcb(pcb)
+            pcbTable.running_pcb = pcb
         else:
             pcb.set_state("Ready")
             kernel.addReadyQueue(pcb)
@@ -272,6 +276,8 @@ class Loader():  # chequear!!!
         self._baseDir = index + 1
         self._limit = progSize - 1
 
+        log.logger.info(HARDWARE.memory)
+
         return myBaseDir
 
 
@@ -295,7 +301,8 @@ class PCBTable():
     def running_pcb(self):
         return self._running_pcb
 
-    def set_running_pcb(self, new_pcb):
+    @running_pcb.setter
+    def running_pcb(self, new_pcb):
         self._running_pcb = new_pcb
 
     def getNewPID(self):
@@ -324,7 +331,7 @@ class PCB():
         self._pc = 0
         self._path = self.program.name
         self._baseDir = base_dir
-        self._limit = len(programa.instructions) - 1
+        self._limit = len(programa.instructions) -1
 
     @property
     def limit(self):
@@ -346,6 +353,10 @@ class PCB():
     def pc(self):
         return self._pc
 
+    @pc.setter
+    def pc(self, mypc):
+        self._pc = mypc
+
     @property
     def state(self):
         return self._state
@@ -364,13 +375,13 @@ class PCB():
 class Dispatcher():  # chequear!!!!
 
     def load(self, pcb):
-        HARDWARE.cpu._pc = pcb.pc
-        HARDWARE.mmu._baseDir = pcb.baseDir
-        HARDWARE.mmu._limit = pcb.limit
+        HARDWARE.cpu.pc = pcb.pc
+        HARDWARE.mmu.baseDir = pcb.baseDir
+        HARDWARE.mmu.limit = pcb.limit
 
     def save(self, pcb):
-        pcb._pc = HARDWARE.cpu.pc
-        HARDWARE.cpu._pc = -1
+        pcb.pc = HARDWARE.cpu.pc
+        HARDWARE.cpu.pc = -1
 
 
 class State(Enum):
