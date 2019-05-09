@@ -40,6 +40,7 @@ KILL_INTERRUPTION_TYPE = "#KILL"
 IO_IN_INTERRUPTION_TYPE = "#IO_IN"
 IO_OUT_INTERRUPTION_TYPE = "#IO_OUT"
 NEW_INTERRUPTION_TYPE = "#NEW"
+TIMEOUT_INTERRUPTION_TYPE = "#TIMEOUT"
 
 ## emulates an Interrupt request
 class IRQ:
@@ -72,7 +73,6 @@ class InterruptVector():
         self.lock.acquire()
         self._handlers[irq.type].execute(irq)
         self.lock.release()
-
 
 
 ## emulates the Internal Clock
@@ -112,7 +112,6 @@ class Clock():
         log.logger.info("---- :::: CLOCK do_ticks: {times} ::: -----".format(times=times))
         for tickNbr in range(0, times):
             self.tick(tickNbr)
-
 
 
 ## emulates the main memory (RAM)
@@ -172,19 +171,17 @@ class Cpu():
         self._pc = -1
         self._ir = None
 
-
     def tick(self, tickNbr):
-        if (self.pc > -1):
+        if (self.isBusy()):
             self._fetch()
             self._decode()
             self._execute()
         else:
             log.logger.info("cpu - NOOP")
 
-
     def _fetch(self):
-        self._ir = self._mmu.fetch(self.pc)
-        self.pc += 1
+        self._ir = self._mmu.fetch(self._pc)
+        self._pc += 1
 
     def _decode(self):
         ## decode no hace nada en este caso
@@ -198,11 +195,11 @@ class Cpu():
             ioInIRQ = IRQ(IO_IN_INTERRUPTION_TYPE, self._ir)
             self._interruptVector.handle(ioInIRQ)
         else:
-            log.logger.info("cpu - Exec: {instr}, PC={pc}".format(instr=self._ir, pc=self.pc))
+            log.logger.info("cpu - Exec: {instr}, PC={pc}".format(instr=self._ir, pc=self._pc))
 
-    @property
-    def mmu(self):
-        return self._mmu
+
+    def isBusy(self):
+        return self._pc > -1
 
     @property
     def pc(self):
@@ -213,8 +210,7 @@ class Cpu():
         self._pc = addr
 
     def __repr__(self):
-        return "CPU(PC={pc})".format(pc=self.pc)
-
+        return "CPU(PC={pc})".format(pc=self._pc)
 
 ## emulates an Input/output device of the Hardware
 class AbstractIODevice():
@@ -236,7 +232,6 @@ class AbstractIODevice():
     def is_idle(self):
         return not self._busy
 
-
     ## executes an I/O instruction
     def execute(self, operation):
         if (self._busy):
@@ -245,7 +240,6 @@ class AbstractIODevice():
             self._busy = True
             self._ticksCount = 0
             self._operation = operation
-
 
     def tick(self, tickNbr):
         if (self._busy):
@@ -259,10 +253,41 @@ class AbstractIODevice():
                 log.logger.info("device {deviceId} - Busy: {ticksCount} of {deviceTime}".format(deviceId = self.deviceId, ticksCount = self._ticksCount, deviceTime = self._deviceTime))
 
 
-
 class PrinterIODevice(AbstractIODevice):
     def __init__(self):
         super(PrinterIODevice, self).__init__("Printer", 3)
+
+
+class Timer:
+
+    def __init__(self, cpu, interruptVector):
+        self._cpu = cpu
+        self._interruptVector = interruptVector
+        self._tickCount = 0    # cantidad de de ciclos “ejecutados” por el proceso actual
+        self._active = False    # por default esta desactivado
+        self._quantum = 0   # por default esta desactivado
+
+    def tick(self, tickNbr):
+        # registro que el proceso en CPU corrio un ciclo mas 
+        self._tickCount += 1
+        if self._active and (self._tickCount > self._quantum) and self._cpu.isBusy():
+            # se “cumplio” el limite de ejecuciones
+            timeoutIRQ = IRQ(TIMEOUT_INTERRUPTION_TYPE)
+            self._interruptVector.handle(timeoutIRQ)
+        else:
+            self._cpu.tick(tickNbr) 
+
+    def reset(self):
+           self._tickCount = 0
+
+    @property
+    def quantum(self):
+        return self._quantum
+
+    @quantum.setter
+    def quantum(self, quantum):
+        self._active = True
+        self._quantum = quantum
 
 
 ## emulates the Hardware that were the Operative System run
@@ -277,8 +302,9 @@ class Hardware():
         self._ioDevice = PrinterIODevice()
         self._mmu = MMU(self._memory)
         self._cpu = Cpu(self._mmu, self._interruptVector)
+        self._timer = Timer(self._cpu, self._interruptVector)
         self._clock.addSubscriber(self._ioDevice)
-        self._clock.addSubscriber(self._cpu)
+        self._clock.addSubscriber(self._timer)
 
     def switchOn(self):
         log.logger.info(" ---- SWITCH ON ---- ")
@@ -312,6 +338,9 @@ class Hardware():
     def ioDevice(self):
         return self._ioDevice
 
+    @property
+    def timer(self):
+        return self._timer
 
     def __repr__(self):
         return "HARDWARE state {cpu}\n{mem}".format(cpu=self._cpu, mem=self._memory)
@@ -319,3 +348,4 @@ class Hardware():
 ### HARDWARE is a global variable
 ### can be access from any
 HARDWARE = Hardware()
+
