@@ -279,7 +279,10 @@ debe llamar al interruptor handle
 Se ejecunta el primer kernel.run(prg1) hasta que la interrupcion de NEW no lo mete a la ready queue o a la cpu(en el caso que no haya nadie en la ready queue) no se ejecuta kernel.run(prg2), y asi sucesivamente.
 
 
+**************************************************PRACTICA 4*****************************************************
 
+
+El SCHEDULER es el unico componente que accede y modifica la READY QUEUE.
 
 
 
