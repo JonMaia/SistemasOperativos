@@ -94,8 +94,8 @@ class AbstractInterruptionHandler:
         log.logger.error("-- EXECUTE MUST BE OVERRIDEN in class {classname}".format(classname=self.__class__.__name__))
 
     def poner_proceso_en_running(self):
-        if len(self.kernel.ready_queue) > 0:
-            head_ready_queue = self.kernel.ready_queue.pop()
+        if len(self.kernel.scheduler.ready_queue) > 0:
+            head_ready_queue = self.kernel.scheduler.getNext()
             head_ready_queue.state = State.RUNNING
             self.kernel.pcb_table.running_pcb = head_ready_queue
             self.kernel.dispatcher.load(head_ready_queue)
@@ -150,7 +150,7 @@ class IoOutInterruptionHandler(AbstractInterruptionHandler):
             pcb_table.running_pcb = io_pcb
 
         else:
-            kernel.add_ready_queue(io_pcb)
+            kernel.scheduler.add(io_pcb)
 
         log.logger.info(kernel.ioDeviceController)
 
@@ -179,14 +179,16 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
             pcb_table.running_pcb = pcb
         else:
             pcb.state = State.READY
-            kernel.add_ready_queue(pcb)
+            kernel.scheduler.add(pcb)
 
 
 # emulates the core of an Operative System
 class Kernel:
 
-    def __init__(self):
+    def __init__(self,scheduler):
         # setup interruption handlers
+        
+
         killHandler = KillInterruptionHandler(self)
         HARDWARE.interruptVector.register(KILL_INTERRUPTION_TYPE, killHandler)
 
@@ -199,7 +201,7 @@ class Kernel:
         newHandler = NewInterruptionHandler(self)
         HARDWARE.interruptVector.register(NEW_INTERRUPTION_TYPE, newHandler)
 
-        self._ready_queue = []
+        self._scheduler = scheduler
 
         self._loader = Loader()
 
@@ -227,11 +229,8 @@ class Kernel:
         return self._ioDeviceController
 
     @property
-    def ready_queue(self):
-        return self._ready_queue
-
-    def add_ready_queue(self, pcb):
-        self._ready_queue.append(pcb)
+    def scheduler(self):
+       return self._scheduler
 
     # emulates a "system call" for programs execution
     def run(self, program):
@@ -243,6 +242,30 @@ class Kernel:
 
     def __repr__(self):
         return "Kernel "
+
+
+
+
+class SchedulerFIFO:
+
+    def __init__(self):
+        self._ready_queue = []
+    
+
+    @property
+    def ready_queue(self):
+        return self._ready_queue
+
+    def add(self, pcb):   
+        self._ready_queue.append(pcb)
+
+    def esExpropiativo(self):
+        return False ;
+
+    def getNext(self):
+        return self._ready_queue.pop() #SACA EL HEAD DE LA LISTA Y TE LO DEVUELVE
+        
+
 
 
 class Loader:
