@@ -169,7 +169,7 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
         HARDWARE.cpu.pc = 0
 
         base_dir = kernel.loader.load(program)
-        pcb = PCB(program, pcb_table.get_new_pid(), base_dir)
+        pcb = PCB(program, pcb_table.get_new_pid(), base_dir, 0)
 
         pcb_table.add_pcb(pcb)
 
@@ -244,13 +244,10 @@ class Kernel:
         return "Kernel "
 
 
-
-
 class SchedulerFIFO:
 
     def __init__(self):
         self._ready_queue = []
-    
 
     @property
     def ready_queue(self):
@@ -260,12 +257,30 @@ class SchedulerFIFO:
         self._ready_queue.append(pcb)
 
     def esExpropiativo(self):
-        return False ;
+        return False
 
     def getNext(self):
-        return self._ready_queue.pop() #SACA EL HEAD DE LA LISTA Y TE LO DEVUELVE
+        return self._ready_queue.pop(0) #SACA EL HEAD DE LA LISTA Y TE LO DEVUELVE
         
 
+class SchedulerPriority:
+
+    def __init__(self):
+        self._ready_queue = []
+
+    @property
+    def ready_queue(self):
+        return self._ready_queue
+
+    def add_pcb(self, pcb):
+        self._ready_queue.append(pcb)
+        self._ready_queue.sort()
+
+    def es_expropiativo(self):
+        return False
+
+    def get_next(self):
+        return self._ready_queue.pop()  # SACA EL HEAD DE LA LISTA Y TE LO DEVUELVE
 
 
 class Loader:
@@ -351,7 +366,7 @@ class PCBTable:
 
 
 class PCB:
-    def __init__(self, programa, pid, base_dir):
+    def __init__(self, programa, pid, base_dir, priority):
         self._program = programa
         self._pid = pid
         self._state = State.NEW
@@ -359,6 +374,7 @@ class PCB:
         self._path = self.program.name
         self._base_dir = base_dir
         self._limit = len(programa.instructions) - 1
+        self._prioridad = priority
 
     @property
     def program(self):
@@ -388,6 +404,10 @@ class PCB:
     def limit(self):
         return self._limit
 
+    @property
+    def prioridad(self):
+        return self._prioridad
+
     @program.setter
     def program(self, new_program):
         self._program = new_program
@@ -415,6 +435,31 @@ class PCB:
     @limit.setter
     def limit(self, new_limit):
         self._limit = new_limit
+
+    @prioridad.setter
+    def prioridad(self, una_prioridad):
+        self._prioridad = una_prioridad
+
+    def __eq__(self, other):
+        return self.prioridad == other.prioridad
+
+    def __ne__(self, other):
+        return self.prioridad != other.prioridad
+
+    def __lt__(self, other):
+        return self.prioridad < other.prioridad
+
+    def __le__(self, other):
+        return self.prioridad <= other.prioridad
+
+    def __gt__(self, other):
+        return self.prioridad > other.prioridad
+
+    def __ge__(self, other):
+        return self.prioridad >= other.prioridad
+
+    def __repr__(self):
+        return "PCB: pid = {id}".format(id=self.pid) + ", " + "prioridad = {prioridad}".format(prioridad=self.prioridad)
 
 
 class Dispatcher:
