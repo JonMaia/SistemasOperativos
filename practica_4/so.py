@@ -272,14 +272,14 @@ class SchedulerPriority:
     def ready_queue(self):
         return self._ready_queue
 
-    def add_pcb(self, pcb):
+    def add(self, pcb):
         self._ready_queue.append(pcb)
         self._ready_queue.sort()
 
-    def es_expropiativo(self):
+    def esExpropiativo(self):
         return False
 
-    def get_next(self):
+    def getNext(self):
         return self._ready_queue.pop()  # SACA EL HEAD DE LA LISTA Y TE LO DEVUELVE
 
 
