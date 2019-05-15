@@ -158,7 +158,9 @@ class IoOutInterruptionHandler(AbstractInterruptionHandler):
 class NewInterruptionHandler(AbstractInterruptionHandler):
 
     def execute(self, irq0):
-        program = irq0.parameters  # IRQ0.parameters devuelve un program.
+        dictNewParam = irq0.parameters  # IRQ0.parameters devuelve un program.
+        priority = dictNewParam['priority']
+        program = dictNewParam['program']
         kernel = self.kernel
         pcb_table = self.kernel.pcb_table
 
@@ -169,7 +171,7 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
         HARDWARE.cpu.pc = 0
 
         base_dir = kernel.loader.load(program)
-        pcb = PCB(program, pcb_table.get_new_pid(), base_dir, 0)
+        pcb = PCB(program, pcb_table.get_new_pid(), base_dir, priority)
 
         pcb_table.add_pcb(pcb)
 
@@ -233,8 +235,9 @@ class Kernel:
        return self._scheduler
 
     # emulates a "system call" for programs execution
-    def run(self, program):
-        newIRQ = IRQ(NEW_INTERRUPTION_TYPE, program)
+    def run(self, program, priority):
+        dictNewParam = {'program': program, 'priority': priority}
+        newIRQ = IRQ(NEW_INTERRUPTION_TYPE, dictNewParam)
         HARDWARE.interruptVector.handle(newIRQ)
 
         log.logger.info("\n Executing program: {name}".format(name=program.name))
@@ -260,7 +263,7 @@ class SchedulerFIFO:
         return False
 
     def getNext(self):
-        return self._ready_queue.pop(0) #SACA EL HEAD DE LA LISTA Y TE LO DEVUELVE
+        return self._ready_queue.pop() #SACA EL HEAD DE LA LISTA Y TE LO DEVUELVE
         
 
 class SchedulerPriority:
@@ -275,7 +278,7 @@ class SchedulerPriority:
     def add(self, pcb):
         self._ready_queue.append(pcb)
         self._ready_queue.sort()
-
+        
     def esExpropiativo(self):
         return False
 
@@ -343,7 +346,7 @@ class PCBTable:
     @property
     def pid(self):
         return self._pid
-
+    
     @cpu.setter
     def cpu(self, new_cpu):
         self._cpu = new_cpu
