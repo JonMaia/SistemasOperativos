@@ -179,9 +179,13 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
             kernel.dispatcher.load(pcb)
             pcb.state = State.RUNNING
             pcb_table.running_pcb = pcb
-        else:
-            pcb.state = State.READY
-            kernel.scheduler.add(pcb)
+        elif(kernel.scheduler.esExpropiativo() and pcb.prioridad() < pcb_table.running_pcb.prioridad()):
+        	kernel.dispatcher.save(pcb_table.running_pcb)  # guarda el pcb del proceso
+        	running_pcb.state = State.READY
+        	self.poner_proceso_en_running()
+        else: 
+        	pcb.state = State.READY
+        	kernel.scheduler.add(pcb)
 
 
 # emulates the core of an Operative System
@@ -266,7 +270,7 @@ class SchedulerFIFO:
         return self._ready_queue.pop(0) #SACA EL HEAD DE LA LISTA Y TE LO DEVUELVE
         
 
-class SchedulerPriority:
+class SchedulerPriorityNoExpropiativo:
 
     def __init__(self):
         self._ready_queue = []
@@ -280,7 +284,7 @@ class SchedulerPriority:
         self._ready_queue.sort()
 
     def esExpropiativo(self):
-        return False
+        return True
 
     def getNext(self):
         return self._ready_queue.pop(0)  # El mas prioritario es el de menor valor.

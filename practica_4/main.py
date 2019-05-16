@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     ## new create the Operative System Kernel
     # "booteamos" el sistema operativo
-    kernel = Kernel(SchedulerPriority())
+    kernel = Kernel(SchedulerPriorityNoExpropiativo())
 
     # Ahora vamos a intentar ejecutar 3 programas a la vez
     ##################
