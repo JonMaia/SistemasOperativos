@@ -283,7 +283,7 @@ class SchedulerPriority:
         return False
 
     def getNext(self):
-        return self._ready_queue.pop()  # SACA EL HEAD DE LA LISTA Y TE LO DEVUELVE
+        return self._ready_queue.pop(0)  # El mas prioritario es el de menor valor.
 
 
 class Loader:

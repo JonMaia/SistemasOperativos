@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     # execute all programs "concurrently"
     kernel.run(prg1, 1)
-    kernel.run(prg2, 2)
+    kernel.run(prg2, 4)
     kernel.run(prg3, 3)
 
 
