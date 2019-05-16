@@ -263,7 +263,7 @@ class SchedulerFIFO:
         return False
 
     def getNext(self):
-        return self._ready_queue.pop() #SACA EL HEAD DE LA LISTA Y TE LO DEVUELVE
+        return self._ready_queue.pop(0) #SACA EL HEAD DE LA LISTA Y TE LO DEVUELVE
         
 
 class SchedulerPriority:
@@ -278,7 +278,7 @@ class SchedulerPriority:
     def add(self, pcb):
         self._ready_queue.append(pcb)
         self._ready_queue.sort()
-        
+
     def esExpropiativo(self):
         return False
 
