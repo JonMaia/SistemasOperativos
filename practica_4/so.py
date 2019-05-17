@@ -142,15 +142,20 @@ class IoOutInterruptionHandler(AbstractInterruptionHandler):
         pcb_table = self.kernel.pcb_table
         kernel = self.kernel
 
-        io_pcb.state = State.READY
-
         if pcb_table.running_pcb is None:
             kernel.dispatcher.load(io_pcb)
             io_pcb.state = State.RUNNING
             pcb_table.running_pcb = io_pcb
-
+        elif kernel.scheduler.esExpropiativo() and io_pcb.prioridad < pcb_table.running_pcb.prioridad:
+        	kernel.dispatcher.save(pcb_table.running_pcb)  # guarda el pcb del proceso
+        	pcb_table.running_pcb.state = State.READY
+        	kernel.scheduler.add(pcb_table.running_pcb)
+        	kernel.dispatcher.load(io_pcb)
+        	io_pcb.state = State.RUNNING
+        	kernel.pcb_table.running_pcb = io_pcb
         else:
-            kernel.scheduler.add(io_pcb)
+        	io_pcb.state = State.READY
+        	kernel.scheduler.add(io_pcb)
 
         log.logger.info(kernel.ioDeviceController)
 
@@ -179,13 +184,29 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
             kernel.dispatcher.load(pcb)
             pcb.state = State.RUNNING
             pcb_table.running_pcb = pcb
-        elif(kernel.scheduler.esExpropiativo() and pcb.prioridad() < pcb_table.running_pcb.prioridad()):
+        elif kernel.scheduler.esExpropiativo() and pcb.prioridad < pcb_table.running_pcb.prioridad:
         	kernel.dispatcher.save(pcb_table.running_pcb)  # guarda el pcb del proceso
-        	running_pcb.state = State.READY
-        	self.poner_proceso_en_running()
+        	pcb_table.running_pcb.state = State.READY
+        	kernel.scheduler.add(pcb_table.running_pcb)
+        	kernel.dispatcher.load(pcb)
+        	pcb.state = State.RUNNING
+        	kernel.pcb_table.running_pcb = pcb
         else: 
         	pcb.state = State.READY
         	kernel.scheduler.add(pcb)
+
+class TimeOutInterruptionHandler(AbstractInterruptionHandler):
+
+	def execute(self, irq0):
+		kernel = self.kernel
+		pcb_table = self.kernel.pcb_table
+		if len(kernel.scheduler.ready_queue) == 0:
+			HARDWARE.timer.reset()
+		else:
+			kernel.dispatcher.save(pcb_table.running_pcb)
+			pcb_table.running_pcb.state = State.READY
+			kernel.scheduler.add(pcb_table.running_pcb)
+			self.poner_proceso_en_running()
 
 
 # emulates the core of an Operative System
@@ -206,6 +227,9 @@ class Kernel:
 
         newHandler = NewInterruptionHandler(self)
         HARDWARE.interruptVector.register(NEW_INTERRUPTION_TYPE, newHandler)
+
+        timeOut = TimeOutInterruptionHandler(self)
+        HARDWARE.interruptVector.register(TIMEOUT_INTERRUPTION_TYPE, timeOut)
 
         self._scheduler = scheduler
 
@@ -284,11 +308,48 @@ class SchedulerPriorityNoExpropiativo:
         self._ready_queue.sort()
 
     def esExpropiativo(self):
+        return False
+
+    def getNext(self):
+        return self._ready_queue.pop(0)  # El mas prioritario es el de menor valor.
+
+class SchedulerPriorityExpropiativo:
+
+    def __init__(self):
+        self._ready_queue = []
+
+    @property
+    def ready_queue(self):
+        return self._ready_queue
+
+    def add(self, pcb):
+        self._ready_queue.append(pcb)
+        self._ready_queue.sort()
+
+    def esExpropiativo(self):
         return True
 
     def getNext(self):
         return self._ready_queue.pop(0)  # El mas prioritario es el de menor valor.
 
+
+class SchedulerRoundRobin:
+
+    def __init__(self):
+        self._ready_queue = []
+
+    @property
+    def ready_queue(self):
+        return self._ready_queue
+
+    def add(self, pcb):
+        self._ready_queue.append(pcb)
+
+    def esExpropiativo(self):
+        return False
+
+    def getNext(self):
+        return self._ready_queue.pop(0)  # El mas prioritario es el de menor valor.
 
 class Loader:
 
@@ -475,6 +536,7 @@ class Dispatcher:
         HARDWARE.cpu.pc = pcb.pc
         HARDWARE.mmu.baseDir = pcb.base_dir
         HARDWARE.mmu.limit = pcb.limit
+        HARDWARE.timer.reset()
 
     def save(self, pcb):
         pcb.pc = HARDWARE.cpu.pc
