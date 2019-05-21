@@ -15,10 +15,11 @@ if __name__ == '__main__':
 
     ## Switch on computer
     HARDWARE.switchOn()
+    HARDWARE.timer.quantum = 4
 
     ## new create the Operative System Kernel
     # "booteamos" el sistema operativo
-    kernel = Kernel(SchedulerPriorityNoExpropiativo())
+    kernel = Kernel(SchedulerRoundRobin())
 
     # Ahora vamos a intentar ejecutar 3 programas a la vez
     ##################

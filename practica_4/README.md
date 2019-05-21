@@ -59,6 +59,8 @@ Prioridad del 1 al 5, la 5 es la mas baja.
 SETEAR QUANTUM AL TIMER DE RUN RUBIN.
 EL ordenamiento de RUN ROUBIN ES FIFO. El quantum ya nos lo dan el profe, va a ser 3 o 4 Ticks.
 
+Debemos resetear el quamtum en DISPATCHER.LOAD() y cuando el quamtum llega a su limite.
+Si el quamtum se vence y no hay nadie en ready queue, se debe reset el quamtum y no sacar el proceso de cpu
 ----------
 En el handler de NEW y IO_OUT debe preguntar si expropiar o no.
 
