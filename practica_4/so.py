@@ -162,24 +162,9 @@ class IoOutInterruptionHandler(AbstractInterruptionHandler):
         pcb_table = self.kernel.pcb_table
         kernel = self.kernel
 
-<<<<<<< HEAD
+
         self.asignarDestinoPCB(io_pcb)
-=======
-        if pcb_table.running_pcb is None:
-            kernel.dispatcher.load(io_pcb)
-            io_pcb.state = State.RUNNING
-            pcb_table.running_pcb = io_pcb
-        elif kernel.scheduler.esExpropiativo() and io_pcb.prioridad < pcb_table.running_pcb.prioridad:
-        	kernel.dispatcher.save(pcb_table.running_pcb)  # guarda el pcb del proceso
-        	pcb_table.running_pcb.state = State.READY
-        	kernel.scheduler.add(pcb_table.running_pcb)
-        	kernel.dispatcher.load(io_pcb)
-        	io_pcb.state = State.RUNNING
-        	kernel.pcb_table.running_pcb = io_pcb
-        else:
-        	io_pcb.state = State.READY
-        	kernel.scheduler.add(io_pcb)
->>>>>>> 5cabca104fc09635b31138c4d0293f94b549f752
+
 
         log.logger.info(kernel.ioDeviceController)
 
@@ -204,7 +189,8 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
 
         pcb_table.add_pcb(pcb)
 
-<<<<<<< HEAD
+
+
         self.asignarDestinoPCB(pcb)
 
 class TimeOutInterruptionHandler(AbstractInterruptionHandler):
@@ -219,22 +205,6 @@ class TimeOutInterruptionHandler(AbstractInterruptionHandler):
 			pcb_table.running_pcb.state = State.READY
 			kernel.scheduler.add(pcb_table.running_pcb)
 			self.poner_proceso_en_running()
-=======
-        if pcb_table.running_pcb is None:
-            kernel.dispatcher.load(pcb)
-            pcb.state = State.RUNNING
-            pcb_table.running_pcb = pcb
-        elif kernel.scheduler.esExpropiativo() and pcb.prioridad < pcb_table.running_pcb.prioridad:
-        	kernel.dispatcher.save(pcb_table.running_pcb)  # guarda el pcb del proceso
-        	pcb_table.running_pcb.state = State.READY
-        	kernel.scheduler.add(pcb_table.running_pcb)
-        	kernel.dispatcher.load(pcb)
-        	pcb.state = State.RUNNING
-        	kernel.pcb_table.running_pcb = pcb
-        else: 
-        	pcb.state = State.READY
-        	kernel.scheduler.add(pcb)
->>>>>>> 5cabca104fc09635b31138c4d0293f94b549f752
 
 class TimeOutInterruptionHandler(AbstractInterruptionHandler):
 
