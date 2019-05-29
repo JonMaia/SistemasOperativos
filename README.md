@@ -34,12 +34,12 @@
    - HARDWARE.cpu.pc = 0 esta de mas
 
 - Loader.load(): por ahi queda mas legible asi:
-   '''
+   ``
          for index in range(0, prog_size):
             HARDWARE.memory.put(index + self._base_dir, (programa.instructions[index]))
 
 	self._base_dir = self._base_dir  + prog_size
-'''
+``
 
 
 
@@ -49,20 +49,20 @@
 
 - asignarDestinoPCB()
   - delegar en el Scheduler la decisión de expropiar, si manana cambiamos el scheduler por otro expropiativo pero que ordena por otro criterio, hay que reescribir el handler    
-  '''
+  ``
   elif kernel.scheduler.esExpropiativo() and pcb.prioridad < pcb_table.running_pcb.prioridad:
- '''
+ ``
  
   por 
-  '''
+  ``
     elif kernel.scheduler.seDebeExpropiar(pcb_table.running_pcb, pcb):
- '''
+``
   
  - PCBTable
    - cuando se usa la parte del  State.RUNNING ??
-   '''
+   ``
       def add_pcb(self, pcb):
         self._lista_de_pcb.append(pcb)
         if pcb.state is State.RUNNING:
             self._running_pcb = pcb
-    '''
+``
