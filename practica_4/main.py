@@ -33,4 +33,5 @@ if __name__ == '__main__':
     kernel.run(prg2, 4)
     kernel.run(prg3, 3)
 
-
+ # NOS FALTA IMPLEMENTAR EL GANTT.
+ # NOS FALTA IMPLEMENTAR MODIFICAR LA PRIORIDAD DE PCB POR ENVEJECIMIENTO.

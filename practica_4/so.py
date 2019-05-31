@@ -197,14 +197,13 @@ class TimeOutInterruptionHandler(AbstractInterruptionHandler):
 	def execute(self, irq0):
 		kernel = self.kernel
 		pcb_table = self.kernel.pcb_table
-		if len(kernel.scheduler.ready_queue) == 0:
+		if kernel.scheduler.ready_queue is None:
 			HARDWARE.timer.reset()
 		else:
 			kernel.dispatcher.save(pcb_table.running_pcb)
 			pcb_table.running_pcb.state = State.READY
 			kernel.scheduler.add(pcb_table.running_pcb)
 			self.poner_proceso_en_running()
-
 
 # emulates the core of an Operative System
 class Kernel:
