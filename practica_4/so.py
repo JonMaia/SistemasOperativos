@@ -85,6 +85,7 @@ class IoDeviceController:
 class AbstractInterruptionHandler:
     def __init__(self, kernel):
         self._kernel = kernel
+        self._fila = dict()
 
     @property
     def kernel(self):
@@ -189,22 +190,7 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
 
         pcb_table.add_pcb(pcb)
 
-
-
         self.asignarDestinoPCB(pcb)
-
-class TimeOutInterruptionHandler(AbstractInterruptionHandler):
-
-	def execute(self, irq0):
-		kernel = self.kernel
-		pcb_table = self.kernel.pcb_table
-		if len(kernel.scheduler.ready_queue) == 0:
-			HARDWARE.timer.reset()
-		else:
-			kernel.dispatcher.save(pcb_table.running_pcb)
-			pcb_table.running_pcb.state = State.READY
-			kernel.scheduler.add(pcb_table.running_pcb)
-			self.poner_proceso_en_running()
 
 class TimeOutInterruptionHandler(AbstractInterruptionHandler):
 
@@ -253,6 +239,9 @@ class Kernel:
         # controls the Hardware's I/O Device
         self._ioDeviceController = IoDeviceController(HARDWARE.ioDevice)
 
+        # self._diag = Diag(self._pcb_table)
+        # HARDWARE.clock.addSubscriber(self._diag)
+
     @property
     def loader(self):
         return self._loader
@@ -272,6 +261,10 @@ class Kernel:
     @property
     def scheduler(self):
        return self._scheduler
+
+    @property
+    def diag(self):
+    	return self._diag
 
     # emulates a "system call" for programs execution
     def run(self, program, priority):
@@ -443,6 +436,11 @@ class PCBTable:
         if pcb.state is State.RUNNING:
             self._running_pcb = pcb
 
+    # def hayAlgunoCorriendo(self):
+    # 	#return reduce(pcb.state == TERMINATED, self.lista_de_pcb) > 0
+    # 	terminados = list(filter(lambda pcb: pcb.state == State.TERMINATED, self.lista_de_pcb))
+    # 	return len(terminados) == len(self.lista_de_pcb)
+
 
 class PCB:
     def __init__(self, programa, pid, base_dir, priority):
@@ -552,6 +550,30 @@ class Dispatcher:
     def save(self, pcb):
         pcb.pc = HARDWARE.cpu.pc
         HARDWARE.cpu.pc = -1
+
+# class Diag():
+#         def __init__(self, pCBTable):
+#             self._diagrama = dict()
+#             self._pcb_table = pCBTable
+
+#         @property
+#         def diagrama(self):
+#             return self._diagrama
+
+#         def tick(self, ticknumber):
+#             if self._pcb_table.hayAlgunoCorriendo():
+#                 self.imprimir()
+#             else:	
+#             	self.put(ticknumber, self._pcb_table)
+
+#         def put(self, tick, pcb_table):
+#             self._diagrama[tick] = (pcb_table.running_pcb.path, len(pcb_table.running_pcb.program.instructions))
+
+#         def imprimir(self):
+#             head = list(self._diagrama.keys())
+#             data = sorted([])
+#             return print(tabulate(data, headers = head ))
+#             HARDWARE.switchOff()
 
 
 class State(Enum):
