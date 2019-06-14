@@ -313,7 +313,6 @@ class Hardware():
     def switchOff(self):
         self.clock.stop()
         log.logger.info(" ---- SWITCH OFF ---- ")
-        Kernel.diag.imprimir()
 
     @property
     def cpu(self):
