@@ -3,6 +3,7 @@
 from hardware import *
 import log
 from enum import Enum
+from tabulate import tabulate
 
 
 # emulates a compiled program
@@ -101,7 +102,7 @@ class AbstractInterruptionHandler:
             self.kernel.pcb_table.running_pcb = head_ready_queue
             self.kernel.dispatcher.load(head_ready_queue)
 
-    def asignarDestinoPCB(self,pcb):
+    def asignarDestinoPCB(self, pcb):
 
         pcb_table = self.kernel.pcb_table
         kernel = self.kernel
@@ -110,16 +111,16 @@ class AbstractInterruptionHandler:
             kernel.dispatcher.load(pcb)
             pcb.state = State.RUNNING
             pcb_table.running_pcb = pcb
-        elif kernel.scheduler.esExpropiativo() and pcb.prioridad < pcb_table.running_pcb.prioridad:
-        	kernel.dispatcher.save(pcb_table.running_pcb)  # guarda el pcb del proceso
-        	pcb_table.running_pcb.state = State.READY
-        	kernel.scheduler.add(pcb_table.running_pcb)
-        	kernel.dispatcher.load(pcb)
-        	pcb.state = State.RUNNING
-        	kernel.pcb_table.running_pcb = pcb
+        elif kernel.scheduler.seDebeExpropiar(pcb_table.running_pcb, pcb):
+            kernel.dispatcher.save(pcb_table.running_pcb)  # guarda el pcb del proceso
+            pcb_table.running_pcb.state = State.READY
+            kernel.scheduler.add(pcb_table.running_pcb)
+            kernel.dispatcher.load(pcb)
+            pcb.state = State.RUNNING
+            kernel.pcb_table.running_pcb = pcb
         else:
-        	pcb.state = State.READY
-        	kernel.scheduler.add(pcb)       
+            pcb.state = State.READY
+            kernel.scheduler.add(pcb)
 
 
 class KillInterruptionHandler(AbstractInterruptionHandler):
@@ -163,9 +164,7 @@ class IoOutInterruptionHandler(AbstractInterruptionHandler):
         pcb_table = self.kernel.pcb_table
         kernel = self.kernel
 
-
         self.asignarDestinoPCB(io_pcb)
-
 
         log.logger.info(kernel.ioDeviceController)
 
@@ -182,8 +181,8 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
         log.logger.info("\n Executing program: {name}".format(name=program.name))
         log.logger.info(HARDWARE)
 
-        # set CPU program counter at program's first intruction
-        HARDWARE.cpu.pc = 0
+        # # set CPU program counter at program's first intruction
+        # HARDWARE.cpu.pc = 0
 
         base_dir = kernel.loader.load(program)
         pcb = PCB(program, pcb_table.get_new_pid(), base_dir, priority)
@@ -192,25 +191,26 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
 
         self.asignarDestinoPCB(pcb)
 
+
 class TimeOutInterruptionHandler(AbstractInterruptionHandler):
 
-	def execute(self, irq0):
-		kernel = self.kernel
-		pcb_table = self.kernel.pcb_table
-		if kernel.scheduler.ready_queue is None:
-			HARDWARE.timer.reset()
-		else:
-			kernel.dispatcher.save(pcb_table.running_pcb)
-			pcb_table.running_pcb.state = State.READY
-			kernel.scheduler.add(pcb_table.running_pcb)
-			self.poner_proceso_en_running()
+    def execute(self, irq0):
+        kernel = self.kernel
+        pcb_table = self.kernel.pcb_table
+        if kernel.scheduler.ready_queue is None:
+            HARDWARE.timer.reset()
+        else:
+            kernel.dispatcher.save(pcb_table.running_pcb)
+            pcb_table.running_pcb.state = State.READY
+            kernel.scheduler.add(pcb_table.running_pcb)
+            self.poner_proceso_en_running()
+
 
 # emulates the core of an Operative System
 class Kernel:
 
-    def __init__(self,scheduler):
+    def __init__(self, scheduler):
         # setup interruption handlers
-        
 
         killHandler = KillInterruptionHandler(self)
         HARDWARE.interruptVector.register(KILL_INTERRUPTION_TYPE, killHandler)
@@ -259,11 +259,11 @@ class Kernel:
 
     @property
     def scheduler(self):
-       return self._scheduler
+        return self._scheduler
 
     @property
     def diag(self):
-    	return self._diag
+        return self._diag
 
     # emulates a "system call" for programs execution
     def run(self, program, priority):
@@ -287,15 +287,15 @@ class SchedulerFIFO:
     def ready_queue(self):
         return self._ready_queue
 
-    def add(self, pcb):   
+    def add(self, pcb):
         self._ready_queue.append(pcb)
 
-    def esExpropiativo(self):
+    def getNext(self):
+        return self._ready_queue.pop(0)  # SACA EL HEAD DE LA LISTA Y TE LO DEVUELVE
+
+    def seDebeExpropiar(self, running_pcb, pcb):
         return False
 
-    def getNext(self):
-        return self._ready_queue.pop(0) #SACA EL HEAD DE LA LISTA Y TE LO DEVUELVE
-        
 
 class SchedulerPriorityNoExpropiativo:
 
@@ -310,11 +310,12 @@ class SchedulerPriorityNoExpropiativo:
         self._ready_queue.append(pcb)
         self._ready_queue.sort()
 
-    def esExpropiativo(self):
-        return False
-
     def getNext(self):
         return self._ready_queue.pop(0)  # El mas prioritario es el de menor valor.
+
+    def seDebeExpropiar(self, running_pcb, pcb):
+        return False
+
 
 class SchedulerPriorityExpropiativo:
 
@@ -329,11 +330,11 @@ class SchedulerPriorityExpropiativo:
         self._ready_queue.append(pcb)
         self._ready_queue.sort()
 
-    def esExpropiativo(self):
-        return True
-
     def getNext(self):
         return self._ready_queue.pop(0)  # El mas prioritario es el de menor valor.
+
+    def seDebeExpropiar(self, running_pcb, pcb):
+        return pcb.prioridad < running_pcb.prioridad
 
 
 class SchedulerRoundRobin:
@@ -348,11 +349,13 @@ class SchedulerRoundRobin:
     def add(self, pcb):
         self._ready_queue.append(pcb)
 
-    def esExpropiativo(self):
-        return False
-
     def getNext(self):
         return self._ready_queue.pop(0)  # El mas prioritario es el de menor valor.
+
+    def seDebeExpropiar(self, running_pcb, pcb):
+        return False
+
+
 
 class Loader:
 
@@ -376,14 +379,19 @@ class Loader:
     def limit(self, new_limit):
         self._limit = new_limit
 
+        for index in range(0, prog_size):
+            HARDWARE.memory.put(index + self._base_dir, (programa.instructions[index]))
+
+        self._base_dir = self._base_dir + prog_size
+
     def load(self, programa):
         prog_size = len(programa.instructions)
         my_base_dir = self._base_dir
 
-        for index in range(self._base_dir, prog_size + self._base_dir):
-            HARDWARE.memory.put(index, (programa.instructions[index - self._base_dir]))
+        for index in range(0, prog_size):
+            HARDWARE.memory.put(index + self.base_dir, (programa.instructions[index]))
 
-        self._base_dir = index + 1
+        self._base_dir = index + prog_size
         self._limit = prog_size - 1
 
         log.logger.info(HARDWARE.memory)
@@ -414,7 +422,7 @@ class PCBTable:
     @property
     def pid(self):
         return self._pid
-    
+
     @cpu.setter
     def cpu(self, new_cpu):
         self._cpu = new_cpu
@@ -432,13 +440,11 @@ class PCBTable:
 
     def add_pcb(self, pcb):
         self._lista_de_pcb.append(pcb)
-        if pcb.state is State.RUNNING:
-            self._running_pcb = pcb
 
-    def hayAlgunoCorriendo(self):
-    	#return reduce(pcb.state == TERMINATED, self.lista_de_pcb) > 0
-    	terminados = list(filter(lambda pcb: pcb.state == State.TERMINATED, self.lista_de_pcb))
-    	return len(terminados) == len(self.lista_de_pcb)
+    def estanTodosTerminados(self):
+        # return reduce(pcb.state == TERMINATED, self.lista_de_pcb) > 0
+        terminados = list(filter(lambda pcb: pcb.state == State.TERMINATED, self.lista_de_pcb))
+        return len(terminados) == len(self.lista_de_pcb)
 
 
 class PCB:
@@ -550,32 +556,41 @@ class Dispatcher:
         pcb.pc = HARDWARE.cpu.pc
         HARDWARE.cpu.pc = -1
 
+
 class Diag():
-        def __init__(self, pCBTable):
-            self._diagrama = dict()
-            self._pcb_table = pCBTable
+    def __init__(self, pCBTable):
+        self._diagrama = dict()
+        self._pcb_table = pCBTable
 
-        @property
-        def diagrama(self):
-            return self._diagrama
+    @property
+    def diagrama(self):
+        return self._diagrama
 
-        def tick(self, ticknumber):
-            if self._pcb_table.hayAlgunoCorriendo():
-                self.imprimir()
-            else:	
-            	self.put(ticknumber, self._pcb_table)
+    def tick(self, ticknumber):
+        if self._pcb_table.estanTodosTerminados():
+            self.imprimir()
+        else:
+            self.put(ticknumber, self._pcb_table)
 
-        def put(self, tick, pcb_table):
-            self._diagrama[tick] = (pcb_table.running_pcb.path, len(pcb_table.running_pcb.program.instructions))
+    def put(self, tick, pcb_table):
+        instrucciones = len(pcb_table.running_pcb.program.instructions)
 
-        def imprimir(self):
-            head = list(self._diagrama.keys())
-            programs = []
-            instrucctions = []
-            for i in range(len(list(self._diagrama.items()))): programs.append(list(self._diagrama.items[i]))
-            for i in range(len(list(self._diagrama.items()))): instrucctions.append(list(self._diagrama.items[i]))
-            return print(tabulate(programs, headers = head))
-            
+        nombre = pcb_table.running_pcb.path
+
+        self._diagrama[tick] = ([(nombre, instrucciones)])
+
+    def imprimir(self):
+        # head = list(self._diagrama.keys())
+        # programs = []
+        # instrucctions = []
+        # for i in range(len(list(self._diagrama.items()))): programs.append(list(self._diagrama.items[i]))
+        # for i in range(len(list(self._diagrama.items()))): instrucctions.append(list(self._diagrama.items[i]))
+        # return print(tabulate(programs, headers=head))
+
+        head = self._diagrama.keys()
+        programs = self.diagrama.copy()
+
+        return print(tabulate(programs, headers=head))
 
 
 class State(Enum):
