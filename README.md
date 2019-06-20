@@ -31,14 +31,14 @@
 - Hablemoslo en clase (Nando)
 
  - #New IRQ handler
-   - HARDWARE.cpu.pc = 0 esta de mas
+   - HARDWARE.cpu.pc = 0 esta de mas  -- Hecho
 
 - Loader.load(): por ahi queda mas legible asi:
    ``
          for index in range(0, prog_size):
             HARDWARE.memory.put(index + self._base_dir, (programa.instructions[index]))
 
-	self._base_dir = self._base_dir  + prog_size
+	self._base_dir = self._base_dir  + prog_size  -- Hecho
 ``
 
 
@@ -55,7 +55,7 @@
  
   por 
   ``
-    elif kernel.scheduler.seDebeExpropiar(pcb_table.running_pcb, pcb):
+    elif kernel.scheduler.seDebeExpropiar(pcb_table.running_pcb, pcb):  -- Hecho
 ``
   
  - PCBTable
@@ -64,5 +64,4 @@
       def add_pcb(self, pcb):
         self._lista_de_pcb.append(pcb)
         if pcb.state is State.RUNNING:
-            self._running_pcb = pcb
-``
+            self._running_pcb = pcb  -- Hecho
