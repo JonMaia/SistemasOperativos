@@ -556,6 +556,23 @@ class Dispatcher:
         pcb.pc = HARDWARE.cpu.pc
         HARDWARE.cpu.pc = -1
 
+class MemoryManager:
+
+	def __init__(self, frameSize):
+		self._frameSize = frameSize
+		self._tablePF = dict()
+		self._framesLibres = []
+
+	def dividirMemoria(self):
+		cantidadFrames = HARDWARE.memory.sizeMemory // self._frameSize  
+		#16 // 4 = 4
+		for i in range(0, cantidadFrames - 1):
+			self._framesLibres.append(i)
+	
+	@property
+	def framesLibres(self):
+		return self._framesLibres
+	
 
 class Diag():
         def __init__(self, pCBTable):

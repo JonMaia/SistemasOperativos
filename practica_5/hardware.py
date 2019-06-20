@@ -126,6 +126,9 @@ class Memory():
     def get(self, addr):
         return self._cells[addr]
 
+    def sizeMemory(self):
+        return len(self._cells)
+
     def __repr__(self):
         return tabulate(enumerate(self._cells), tablefmt='psql')
         ## return "Memoria = {mem}".format(mem=self._cells)
