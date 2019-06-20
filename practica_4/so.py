@@ -388,10 +388,10 @@ class Loader:
         prog_size = len(programa.instructions)
         my_base_dir = self._base_dir
 
-        for index in range(0, prog_size):
-            HARDWARE.memory.put(index + self.base_dir, (programa.instructions[index]))
+        for index in range(self._base_dir, prog_size + self._base_dir):
+            HARDWARE.memory.put(index, (programa.instructions[index - self._base_dir]))
 
-        self._base_dir = index + prog_size
+        self._base_dir = index + 1
         self._limit = prog_size - 1
 
         log.logger.info(HARDWARE.memory)
@@ -568,10 +568,11 @@ class Diag():
             return self._diagrama
 
         def tick(self, ticknumber):
-            if self._pcb_table.estanTodosTerminados():
-                self.imprimir()
-            else:	
-            	self.put(ticknumber, self._pcb_table)
+            # if self._pcb_table.estanTodosTerminados():
+            #     self.imprimir()
+            # else:	
+            # 	self.put(ticknumber, self._pcb_table)
+            pass
 
         def put(self, tick, pcb_table):
             self._diagrama[pcb_table.running_pcb.pid] = pcb_table.running_pcb.program.instructions
