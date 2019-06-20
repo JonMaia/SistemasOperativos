@@ -24,14 +24,13 @@ if __name__ == '__main__':
     # Ahora vamos a intentar ejecutar 3 programas a la vez
     ##################
     
-    #prg1 = Program("prg1.exe", [ASM.CPU(2), ASM.IO(), ASM.CPU(3), ASM.IO(), ASM.CPU(2)])
+    prg1 = Program("prg1.exe", [ASM.CPU(2), ASM.IO(), ASM.CPU(3), ASM.IO(), ASM.CPU(2)])
     prg2 = Program("prg2.exe", [ASM.CPU(2)])
     #prg3 = Program("prg3.exe", [ASM.CPU(4), ASM.IO(), ASM.CPU(1)])
 
     # execute all programs "concurrently"
-    #kernel.run(prg1, 1)
+    kernel.run(prg1, 1)
     kernel.run(prg2, 4)
     #kernel.run(prg3, 3)
 
- # NOS FALTA IMPLEMENTAR EL GANTT.
  # NOS FALTA IMPLEMENTAR MODIFICAR LA PRIORIDAD DE PCB POR ENVEJECIMIENTO.

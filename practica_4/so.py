@@ -553,6 +553,7 @@ class Dispatcher:
 class Diag():
         def __init__(self, pCBTable):
             self._diagrama = dict()
+            self._ticks = []
             self._pcb_table = pCBTable
 
         @property
@@ -566,15 +567,14 @@ class Diag():
             	self.put(ticknumber, self._pcb_table)
 
         def put(self, tick, pcb_table):
-            self._diagrama[tick] = (pcb_table.running_pcb.path, len(pcb_table.running_pcb.program.instructions))
+            self._diagrama[pcb_table.running_pcb.pid] = pcb_table.running_pcb.program.instructions
+            self._ticks.append(tick)
 
         def imprimir(self):
-            head = list(self._diagrama.keys())
-            programs = []
-            instrucctions = []
-            for i in range(len(list(self._diagrama.items()))): programs.append(list(self._diagrama.items[i]))
-            for i in range(len(list(self._diagrama.items()))): instrucctions.append(list(self._diagrama.items[i]))
-            return print(tabulate(programs, headers = head))
+            headers = [0] + self._ticks
+            programs = list(self._diagrama.keys())
+            instrucctions = list(self._diagrama.values())
+            print(tabulate(instrucctions, headers = headers, showindex = programs, tablefmt = "grid"))
             
 
 
