@@ -128,6 +128,7 @@ class KillInterruptionHandler(AbstractInterruptionHandler):
     def execute(self, irq0):
         kernel = self.kernel
         pcb_table = self.kernel.pcb_table
+        memoryManager = self.kernel.memoryManager
 
         pcb_actual = pcb_table.running_pcb
         pcb_table.running_pcb = None
@@ -136,6 +137,9 @@ class KillInterruptionHandler(AbstractInterruptionHandler):
         pcb_actual.state = State.TERMINATED
 
         log.logger.info(" Program Finished ")
+        pages = memoryManager.getPageTable(pcb_actual.pid)
+
+        memoryManager.freeFrames(pages)
 
         self.poner_proceso_en_running()
 
@@ -177,16 +181,18 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
         program = dictNewParam['program']
         kernel = self.kernel
         pcb_table = self.kernel.pcb_table
+        memoryManager = self.kernel.memoryManager
 
-        log.logger.info("\n Executing program: {name}".format(name=program.name))
+        log.logger.info("\n Executing program: {name}".format(name=program))
         log.logger.info(HARDWARE)
 
         # # set CPU program counter at program's first intruction
         # HARDWARE.cpu.pc = 0
 
-        base_dir = kernel.loader.load(program)
+        base_dir, pages = kernel.loader.load(program)
         pcb = PCB(program, pcb_table.get_new_pid(), base_dir, priority)
 
+        memoryManager.putPageTable(pcb.pid, pages)
         pcb_table.add_pcb(pcb)
 
         self.asignarDestinoPCB(pcb)
@@ -229,7 +235,11 @@ class Kernel:
 
         self._scheduler = scheduler
 
-        self._loader = Loader()
+        self._memoryManager = MemoryManager(4)
+
+        self._fileSystem = FileSystem()
+
+        self._loader = Loader(self._fileSystem, self._memoryManager)
 
         self._pcb_table = PCBTable()
 
@@ -239,7 +249,20 @@ class Kernel:
         self._ioDeviceController = IoDeviceController(HARDWARE.ioDevice)
 
         self._diag = Diag(self._pcb_table)
+
         HARDWARE.clock.addSubscriber(self._diag)
+
+        HARDWARE.mmu.frameSize = 4
+
+
+
+    @property
+    def memoryManager(self):
+        return self._memoryManager
+
+    @property
+    def fileSystem(self):
+        return self._fileSystem
 
     @property
     def loader(self):
@@ -356,47 +379,41 @@ class SchedulerRoundRobin:
         return False
 
 
+class Loader():
 
-class Loader:
-
-    def __init__(self):
+    def __init__(self, fileSystem, memoryManager):
         self._base_dir = 0
-        self._limit = 0
+        self._fileSystem = fileSystem
+        self._memoryManager = memoryManager
 
     @property
     def base_dir(self):
         return self._base_dir
 
-    @property
-    def limit(self):
-        return self._limit
-
     @base_dir.setter
     def base_dir(self, new_base_dir):
         self._base_dir = new_base_dir
 
-    @limit.setter
-    def limit(self, new_limit):
-        self._limit = new_limit
+    def load(self, path):
+        programa = self._fileSystem.read(path)
+        prog_size = len(programa.instructions)
+
+        pages = self._memoryManager.allocFrames(prog_size)
+        frameSize = HARDWARE.mmu.frameSize
 
         for index in range(0, prog_size):
-            HARDWARE.memory.put(index + self._base_dir, (programa.instructions[index]))
+            # HARDWARE.memory.put(index, (programa.instructions[index - self._base_dir]))
 
-        self._base_dir = self._base_dir + prog_size
+            page = pages[index // frameSize]
+            offset = index % frameSize
+            physicalAddress = (frameSize * page) + offset
+            instruction = programa.instructions[index]
+            HARDWARE.memory.put(physicalAddress, instruction)
 
-    def load(self, programa):
-        prog_size = len(programa.instructions)
-        my_base_dir = self._base_dir
+        my_base_dir = page * frameSize
 
-        for index in range(self._base_dir, prog_size + self._base_dir):
-            HARDWARE.memory.put(index, (programa.instructions[index - self._base_dir]))
+        return my_base_dir, pages
 
-        self._base_dir = index + 1
-        self._limit = prog_size - 1
-
-        log.logger.info(HARDWARE.memory)
-
-        return my_base_dir
 
 
 class PCBTable:
@@ -547,59 +564,110 @@ class PCB:
 class Dispatcher:
 
     def load(self, pcb):
-        HARDWARE.cpu.pc = pcb.pc
+        memoryManager = self._kernel.memoryManager
+        #HARDWARE.cpu.pc = pcb.pc
         HARDWARE.mmu.baseDir = pcb.base_dir
-        HARDWARE.mmu.limit = pcb.limit
         HARDWARE.timer.reset()
+        HARDWARE.mmu.resetTLB()
+
+        pages = memoryManager.getPageTable(pcb.pid)
+        for page in range(0, len(pages)):
+            HARDWARE.mmu.setPageFrame(page, pages[page])
+
+
 
     def save(self, pcb):
         pcb.pc = HARDWARE.cpu.pc
         HARDWARE.cpu.pc = -1
 
+
 class MemoryManager:
 
-	def __init__(self, frameSize):
-		self._frameSize = frameSize
-		self._tablePF = dict()
-		self._framesLibres = []
+    def __init__(self, frameSize):
+        self._frameSize = frameSize
+        self._tablePF = dict()
+        self._listaFreeFrames = []
+        self._framesOcupados = []
+        self.dividirMemoria()
 
-	def dividirMemoria(self):
-		cantidadFrames = HARDWARE.memory.sizeMemory // self._frameSize  
-		#16 // 4 = 4
-		for i in range(0, cantidadFrames - 1):
-			self._framesLibres.append(i)
-	
-	@property
-	def framesLibres(self):
-		return self._framesLibres
-	
+    def dividirMemoria(self):
+        cantidadFrames = HARDWARE.memory.sizeMemory() // self._frameSize
+        # 16 // 4 = 4
+        for i in range(0, cantidadFrames - 1):
+            self._listaFreeFrames.append(i)
+
+    def freeFrames(self, frame):
+        self._listaFreeFrames += frame
+
+    @property
+    def framesOcupados(self):
+        return self._framesOcupados
+
+    def liberarFrame(self, frame):
+        framelibre = self.framesOcupados.pop(self._framesOcupados.index(frame))
+        self._listaFreeFrames.append(framelibre)
+
+    def allocFrames(self, cantInst):
+        frameAlloc = cantInst // self._frameSize + self.resto(cantInst)
+
+        if frameAlloc <= len(self._listaFreeFrames):
+            alloc = self._listaFreeFrames[0:frameAlloc]
+            self._listaFreeFrames = self._listaFreeFrames[frameAlloc:]
+        else:
+            alloc = []
+
+        return alloc
+
+    def putPageTable(self, pid, pageTable):
+        self._tablePF.update({pid: pageTable})
+
+    def getPageTable(self, pid):
+        return self._tablePF.get(pid)
+
+    def resto(self, n):
+        if n % self._frameSize == 0:
+            return 0
+        else:
+            return 1
+
+class FileSystem():
+
+    def __init__(self):
+        self._fileSystem = dict()
+
+    def write(self, path, prog):
+        self._fileSystem.update({path: prog})
+
+    def read(self, path):
+        self._fileSystem.get(path)
+
 
 class Diag():
-        def __init__(self, pCBTable):
-            self._diagrama = dict()
-            self._ticks = []
-            self._pcb_table = pCBTable
+    def __init__(self, pCBTable):
+        self._diagrama = dict()
+        self._ticks = []
+        self._pcb_table = pCBTable
 
-        @property
-        def diagrama(self):
-            return self._diagrama
+    @property
+    def diagrama(self):
+        return self._diagrama
 
-        def tick(self, ticknumber):
-            # if self._pcb_table.estanTodosTerminados():
-            #     self.imprimir()
-            # else:	
-            # 	self.put(ticknumber, self._pcb_table)
-            pass
+    def tick(self, ticknumber):
+        # if self._pcb_table.estanTodosTerminados():
+        #     self.imprimir()
+        # else:
+        # 	self.put(ticknumber, self._pcb_table)
+        pass
 
-        def put(self, tick, pcb_table):
-            self._diagrama[pcb_table.running_pcb.pid] = pcb_table.running_pcb.program.instructions
-            self._ticks.append(tick)
+    def put(self, tick, pcb_table):
+        self._diagrama[pcb_table.running_pcb.pid] = pcb_table.running_pcb.program.instructions
+        self._ticks.append(tick)
 
-        def imprimir(self):
-            headers = [0] + self._ticks
-            programs = list(self._diagrama.keys())
-            instrucctions = list(self._diagrama.values())
-            print(tabulate(instrucctions, headers = headers, showindex = programs, tablefmt = "grid"))
+    def imprimir(self):
+        headers = [0] + self._ticks
+        programs = list(self._diagrama.keys())
+        instrucctions = list(self._diagrama.values())
+        print(tabulate(instrucctions, headers=headers, showindex=programs, tablefmt="grid"))
 
 
 class State(Enum):
