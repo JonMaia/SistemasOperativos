@@ -45,7 +45,6 @@ class Program:
     def __repr__(self):
         return "Program({name}, {instructions})".format(name=self._name, instructions=self._instructions)
 
-
 # emulates an Input/Output device controller (driver)
 class IoDeviceController:
 
@@ -81,7 +80,6 @@ class IoDeviceController:
         return "IoDeviceController for {deviceID} running: {currentPCB} waiting: {waiting_queue}".format(
             deviceID=self._device.deviceId, currentPCB=self._currentPCB, waiting_queue=self._waiting_queue)
 
-
 # emulates the  Interruptions Handlers
 class AbstractInterruptionHandler:
     def __init__(self, kernel):
@@ -100,7 +98,7 @@ class AbstractInterruptionHandler:
             head_ready_queue = self.kernel.scheduler.getNext()
             head_ready_queue.state = State.RUNNING
             self.kernel.pcb_table.running_pcb = head_ready_queue
-            self.kernel.dispatcher.load(head_ready_queue)
+            self.kernel.dispatcher.load(self.kernel.memoryManager, head_ready_queue)
 
     def asignarDestinoPCB(self, pcb):
 
@@ -108,20 +106,19 @@ class AbstractInterruptionHandler:
         kernel = self.kernel
 
         if pcb_table.running_pcb is None:
-            kernel.dispatcher.load(pcb)
+            kernel.dispatcher.load(self.kernel.memoryManager, pcb)
             pcb.state = State.RUNNING
             pcb_table.running_pcb = pcb
         elif kernel.scheduler.seDebeExpropiar(pcb_table.running_pcb, pcb):
             kernel.dispatcher.save(pcb_table.running_pcb)  # guarda el pcb del proceso
             pcb_table.running_pcb.state = State.READY
             kernel.scheduler.add(pcb_table.running_pcb)
-            kernel.dispatcher.load(pcb)
+            kernel.dispatcher.load(self.kernel.memoryManager, pcb)
             pcb.state = State.RUNNING
             kernel.pcb_table.running_pcb = pcb
         else:
             pcb.state = State.READY
             kernel.scheduler.add(pcb)
-
 
 class KillInterruptionHandler(AbstractInterruptionHandler):
 
@@ -143,7 +140,6 @@ class KillInterruptionHandler(AbstractInterruptionHandler):
 
         self.poner_proceso_en_running()
 
-
 class IoInInterruptionHandler(AbstractInterruptionHandler):
 
     def execute(self, irq):
@@ -160,7 +156,6 @@ class IoInInterruptionHandler(AbstractInterruptionHandler):
         kernel.ioDeviceController.runOperation(running_pcb, operation)
         self.poner_proceso_en_running()
 
-
 class IoOutInterruptionHandler(AbstractInterruptionHandler):
 
     def execute(self, irq):
@@ -171,7 +166,6 @@ class IoOutInterruptionHandler(AbstractInterruptionHandler):
         self.asignarDestinoPCB(io_pcb)
 
         log.logger.info(kernel.ioDeviceController)
-
 
 class NewInterruptionHandler(AbstractInterruptionHandler):
 
@@ -190,13 +184,12 @@ class NewInterruptionHandler(AbstractInterruptionHandler):
         # HARDWARE.cpu.pc = 0
 
         base_dir, pages = kernel.loader.load(program)
-        pcb = PCB(program, pcb_table.get_new_pid(), base_dir, priority)
+        pcb = PCB(kernel.loader._fileSystem.read(program), pcb_table.get_new_pid(), base_dir, priority)
 
         memoryManager.putPageTable(pcb.pid, pages)
         pcb_table.add_pcb(pcb)
 
         self.asignarDestinoPCB(pcb)
-
 
 class TimeOutInterruptionHandler(AbstractInterruptionHandler):
 
@@ -210,7 +203,6 @@ class TimeOutInterruptionHandler(AbstractInterruptionHandler):
             pcb_table.running_pcb.state = State.READY
             kernel.scheduler.add(pcb_table.running_pcb)
             self.poner_proceso_en_running()
-
 
 # emulates the core of an Operative System
 class Kernel:
@@ -254,8 +246,6 @@ class Kernel:
 
         HARDWARE.mmu.frameSize = 4
 
-
-
     @property
     def memoryManager(self):
         return self._memoryManager
@@ -294,12 +284,11 @@ class Kernel:
         newIRQ = IRQ(NEW_INTERRUPTION_TYPE, dictNewParam)
         HARDWARE.interruptVector.handle(newIRQ)
 
-        log.logger.info("\n Executing program: {name}".format(name=program.name))
+        log.logger.info("\n Executing program: {name}".format(name=program))
         log.logger.info(HARDWARE)
 
     def __repr__(self):
         return "Kernel "
-
 
 class SchedulerFIFO:
 
@@ -318,7 +307,6 @@ class SchedulerFIFO:
 
     def seDebeExpropiar(self, running_pcb, pcb):
         return False
-
 
 class SchedulerPriorityNoExpropiativo:
 
@@ -339,7 +327,6 @@ class SchedulerPriorityNoExpropiativo:
     def seDebeExpropiar(self, running_pcb, pcb):
         return False
 
-
 class SchedulerPriorityExpropiativo:
 
     def __init__(self):
@@ -359,7 +346,6 @@ class SchedulerPriorityExpropiativo:
     def seDebeExpropiar(self, running_pcb, pcb):
         return pcb.prioridad < running_pcb.prioridad
 
-
 class SchedulerRoundRobin:
 
     def __init__(self):
@@ -378,7 +364,6 @@ class SchedulerRoundRobin:
     def seDebeExpropiar(self, running_pcb, pcb):
         return False
 
-
 class Loader():
 
     def __init__(self, fileSystem, memoryManager):
@@ -394,10 +379,13 @@ class Loader():
     def base_dir(self, new_base_dir):
         self._base_dir = new_base_dir
 
+    @property
+    def fileSystem(self):
+        return self._fileSystem
+
     def load(self, path):
         programa = self._fileSystem.read(path)
         prog_size = len(programa.instructions)
-
         pages = self._memoryManager.allocFrames(prog_size)
         frameSize = HARDWARE.mmu.frameSize
 
@@ -413,8 +401,6 @@ class Loader():
         my_base_dir = page * frameSize
 
         return my_base_dir, pages
-
-
 
 class PCBTable:
 
@@ -463,14 +449,13 @@ class PCBTable:
         terminados = list(filter(lambda pcb: pcb.state == State.TERMINATED, self.lista_de_pcb))
         return len(terminados) == len(self.lista_de_pcb)
 
-
 class PCB:
     def __init__(self, programa, pid, base_dir, priority):
         self._program = programa
         self._pid = pid
         self._state = State.NEW
         self._pc = 0
-        self._path = self.program.name
+        self._path = self._program.name
         self._base_dir = base_dir
         self._limit = len(programa.instructions) - 1
         self._prioridad = priority
@@ -560,12 +545,10 @@ class PCB:
     def __repr__(self):
         return "PCB: pid = {id}".format(id=self.pid) + ", " + "prioridad = {prioridad}".format(prioridad=self.prioridad)
 
-
 class Dispatcher:
 
-    def load(self, pcb):
-        memoryManager = self._kernel.memoryManager
-        #HARDWARE.cpu.pc = pcb.pc
+    def load(self, memoryManager, pcb):
+        HARDWARE.cpu.pc = pcb.pc
         HARDWARE.mmu.baseDir = pcb.base_dir
         HARDWARE.timer.reset()
         HARDWARE.mmu.resetTLB()
@@ -574,12 +557,9 @@ class Dispatcher:
         for page in range(0, len(pages)):
             HARDWARE.mmu.setPageFrame(page, pages[page])
 
-
-
     def save(self, pcb):
         pcb.pc = HARDWARE.cpu.pc
         HARDWARE.cpu.pc = -1
-
 
 class MemoryManager:
 
@@ -639,8 +619,7 @@ class FileSystem():
         self._fileSystem.update({path: prog})
 
     def read(self, path):
-        self._fileSystem.get(path)
-
+        return self._fileSystem.get(path)
 
 class Diag():
     def __init__(self, pCBTable):
@@ -656,7 +635,7 @@ class Diag():
         # if self._pcb_table.estanTodosTerminados():
         #     self.imprimir()
         # else:
-        # 	self.put(ticknumber, self._pcb_table)
+        #   self.put(ticknumber, self._pcb_table)
         pass
 
     def put(self, tick, pcb_table):
@@ -668,7 +647,6 @@ class Diag():
         programs = list(self._diagrama.keys())
         instrucctions = list(self._diagrama.values())
         print(tabulate(instrucctions, headers=headers, showindex=programs, tablefmt="grid"))
-
 
 class State(Enum):
     NEW = 1
